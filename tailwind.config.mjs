@@ -11,7 +11,13 @@ export default {
         background: "var(--background)",
         foreground: "var(--foreground)",
       },
+      transform: {
+        'rotate-y-360': 'rotateY(360deg)',
+        'rotate-y-0': 'rotateY(0deg)',
+      },
     },
   },
-  plugins: [],
+  plugins: [
+    require('tailwind-scrollbar'),
+  ],
 };
