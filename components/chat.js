@@ -1,16 +1,64 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
+import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
     const { isRoomActive, setRoomCreated } = useRoomContext();
-
-    // Track mute status for individual users
     const [muteStatus, setMuteStatus] = useState({});
+    const [room, setRoom] = useState("");
+    const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
+    const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
+
+    useEffect(() => {
+        // Connect to the Socket.IO server
+        connectSocket();
+
+        // Listen for incoming messages
+        onMessage((data) => {
+            setChat((prevChat) => [...prevChat, data]);
+        });
+
+        return () => {
+            // Clean up the message listener
+            offMessage();
+        };
+    }, []);
+
+    useEffect(() => {
+        // Whenever `room` changes, join the room
+        if (room) {
+            joinRoom(room);
+            alert(`Joined room: ${room}`);
+        }
+    }, [room]); 
+
+
+    function generateRoomId(length = 8) {
+        const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+        let roomId = "";
+        for (let i = 0; i < length; i++) {
+            const randomIndex = Math.floor(Math.random() * characters.length);
+            roomId += characters[randomIndex];
+        }
+        return roomId;
+    }
 
     const CreateRoom = () => {
+        const roomId = generateRoomId();
+        setRoom(roomId);  // This sets the room state
         setRoomCreated(true);
+        setIsCreateRoomClicked(true)
     };
+
+    const handleJoinRoom = () => {
+        setIsCreateRoomClicked(false);
+        setIsJoinRoomClicked(true);
+        console.log(isJoinRoomClicked)
+    };
+    
+    
+
 
     const toggleMute = (user) => {
         setMuteStatus((prevStatus) => ({
@@ -128,19 +176,40 @@ function Chat() {
                         >
                             Create Room
                         </button>
-                        <button className="bg-white text-black rounded-sm p-2 w-full border">
+                        <button className="bg-white text-black rounded-sm p-2 w-full border" onClick={handleJoinRoom}>
                             Join Room
                         </button>
                     </div>
                 ) : (
                     <div className="flex gap-2 mt-2">
-                        <textarea
-                            placeholder="Enter your message here"
-                            className="w-3/4 rounded-md border p-0 flex justify-items-center overflow-auto scrollbar-thin"
-                        />
-                        <button className="bg-gray-900 text-white rounded-sm py-0 w-1/4 border">
-                            Send
-                        </button>
+                        {isJoinRoomClicked && (
+                            <>
+                                <input
+                                    type="text"
+                                    className="w-full p-2 border"
+                                    placeholder="Enter Room ID..."
+                                    onChange={(e) => setRoom(e.target.value)}  // Update the room state when input changes
+                                />
+                                <button
+                                    className="bg-green-500 text-white p-2 rounded-md"
+                                    onClick={() => joinRoom(room)}  // Join the room when the button is clicked
+                                >
+                                    Invite
+                                </button>
+                            </>
+                        )}
+                        {isCreateRoomClicked && (
+                            <>
+                                <textarea
+                                    placeholder="Enter your message here"
+                                    className="w-3/4 rounded-md border p-0 flex justify-items-center overflow-auto scrollbar-thin"
+                                />
+                                <button className="bg-gray-900 text-white rounded-sm py-0 w-1/4 border">
+                                    Send
+                                </button>
+                            </>
+                        )}
+                        
                     </div>
                 )
             )}
