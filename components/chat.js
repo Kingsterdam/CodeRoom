@@ -9,6 +9,9 @@ function Chat() {
     const [room, setRoom] = useState("");
     const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
+    const [chat, setChat] = useState([]); // State to store chat messages
+    const [message, setMessage] = useState(""); // State to store input message 
+    const [stage, setStage] = useState(0);
 
     useEffect(() => {
         // Connect to the Socket.IO server
@@ -25,15 +28,6 @@ function Chat() {
         };
     }, []);
 
-    useEffect(() => {
-        // Whenever `room` changes, join the room
-        if (room) {
-            joinRoom(room);
-            alert(`Joined room: ${room}`);
-        }
-    }, [room]); 
-
-
     function generateRoomId(length = 8) {
         const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         let roomId = "";
@@ -47,18 +41,37 @@ function Chat() {
     const CreateRoom = () => {
         const roomId = generateRoomId();
         setRoom(roomId);  // This sets the room state
+        joinRoom(roomId)
         setRoomCreated(true);
-        setIsCreateRoomClicked(true)
+        setIsCreateRoomClicked(true);
+        setIsJoinRoomClicked(false);
+        setRoomCreated(true)
     };
 
     const handleJoinRoom = () => {
-        setIsCreateRoomClicked(false);
         setIsJoinRoomClicked(true);
-        console.log(isJoinRoomClicked)
+        setIsCreateRoomClicked(false);
+        setStage(1);
     };
-    
-    
+    const handlingJoinRoom = () => {
+        joinRoom(room);
+        setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
+        setRoomCreated(true)
+        setStage(2)
+    };
 
+    const handleSendMessage = () => {
+        if (message.trim()) {
+            const newMessage = {
+                name: "You", // Replace this with the current user's name if available
+                text: message,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            setChat((prevChat) => [...prevChat, newMessage]); // Add the new message to the chat state
+            sendMessage(room, newMessage); // Send the message to the server
+            setMessage(""); // Clear the input field
+        }
+    };
 
     const toggleMute = (user) => {
         setMuteStatus((prevStatus) => ({
@@ -109,22 +122,24 @@ function Chat() {
             {/* Chat Section */}
             {activeTab === 'chat' && (
                 <div className="flex-1 flex-col-reverse overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 chat_messages py-4 px-1">
-                    {messages.map((message, index) => (
-                        <div key={index} className={`flex ${message.name === 'Amit Mishra' ? 'justify-end' : 'justify-start'} mb-4`}>
-                            <div className={`flex flex-col max-w-[80%] ${message.name === 'Amit Mishra' ? 'items-end' : 'items-start'}`}>
+                    {chat.map((message, index) => (
+                        <div key={index} className={`flex ${message.name === 'You' ? 'justify-end' : 'justify-start'} mb-4`}>
+                            <div className={`flex flex-col max-w-[80%] ${message.name === 'You' ? 'items-end' : 'items-start'}`}>
                                 <div className="px-1 text-gray-400 name_size">
-                                    {message.name} <span className="text-gray-500">({message.time})</span>
+                                    {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
                                 </div>
                                 <div
-                                    className={`text-wrap p-2 ${message.name === 'Amit Mishra' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'
+                                    className={`text-wrap p-2 ${message.name === 'You' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'
                                         } rounded-md border`}
                                 >
-                                    {message.text}
+                                    {message.text || "No content"}
                                 </div>
                             </div>
                         </div>
                     ))}
+
                 </div>
+
             )}
 
             {/* Users Section */}
@@ -168,7 +183,7 @@ function Chat() {
 
             {/* Action Buttons */}
             {activeTab === 'chat' && (
-                !isRoomActive ? (
+                !isRoomActive && stage === 0 ? (
                     <div className="flex gap-4 justify-between mt-4">
                         <button
                             className="bg-gray-900 text-white rounded-sm p-2 w-full border"
@@ -182,7 +197,7 @@ function Chat() {
                     </div>
                 ) : (
                     <div className="flex gap-2 mt-2">
-                        {isJoinRoomClicked && (
+                        {stage === 1 && (
                             <>
                                 <input
                                     type="text"
@@ -191,25 +206,31 @@ function Chat() {
                                     onChange={(e) => setRoom(e.target.value)}  // Update the room state when input changes
                                 />
                                 <button
-                                    className="bg-green-500 text-white p-2 rounded-md"
-                                    onClick={() => joinRoom(room)}  // Join the room when the button is clicked
+                                    className="bg-gray-900 text-white p-2 px-4 rounded-md"
+                                    onClick={handlingJoinRoom}  // Join the room when the button is clicked
                                 >
-                                    Invite
+                                    Join
                                 </button>
                             </>
                         )}
-                        {isCreateRoomClicked && (
-                            <>
-                                <textarea
+                        {(isCreateRoomClicked || stage === 2) && (
+                            <div className="flex gap-2 mt-2 w-full">
+                                <input
                                     placeholder="Enter your message here"
-                                    className="w-3/4 rounded-md border p-0 flex justify-items-center overflow-auto scrollbar-thin"
+                                    value={message} // Bind input to message state
+                                    onChange={(e) => setMessage(e.target.value)} // Update message state on input change
+                                    className="w-3/4 rounded-md border p-2 flex overflow-auto scrollbar-thin"
                                 />
-                                <button className="bg-gray-900 text-white rounded-sm py-0 w-1/4 border">
+                                <button
+                                    className="bg-gray-900 text-white rounded-sm py-0 w-1/4 border"
+                                    onClick={handleSendMessage} // Call handleSendMessage on button click
+                                >
                                     Send
                                 </button>
-                            </>
+                            </div>
                         )}
-                        
+
+
                     </div>
                 )
             )}

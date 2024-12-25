@@ -54,13 +54,13 @@ export const joinRoom = (room) => {
 /**
  * Sends a message to a specified room.
  * @param {string} room - The name of the room to send the message to.
- * @param {string} message - The message content.
+ * @param {object} message - The message content.
  */
 export const sendMessage = (room, message) => {
     const socket = getSocket();
     if (room && message) {
         socket.emit("message", { room, message });
-        console.log(`Message sent to room ${room}: ${message}`);
+        console.log(`Message sent to room ${room}: ${message.text}`);
     } else {
         console.error("Room and message are required to send a message.");
     }
