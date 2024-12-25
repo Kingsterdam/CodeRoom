@@ -4,9 +4,9 @@ import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
-    const { isRoomActive, setRoomCreated, stage, setStage } = useRoomContext();
+    const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext();
     const [muteStatus, setMuteStatus] = useState({});
-    const [room, setRoom] = useState("");
+    // const [room, setRoom] = useState("");
     const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
@@ -47,7 +47,12 @@ function Chat() {
     const CreateRoom = () => {
         const roomId = generateRoomId();
         setRoom(roomId);  // This sets the room state
-        joinRoom(roomId)
+        const newMsg = {
+            type: "Join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        joinRoom(roomId, newMsg)
         setRoomCreated(true);
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
@@ -62,7 +67,12 @@ function Chat() {
         console.log("this is the stage", stage)
     };
     const handlingJoinRoom = () => {
-        joinRoom(room);
+        const newMsg = {
+            type: "Join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        joinRoom(room, newMsg);
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
         setRoomCreated(true)
         setStage(2)
