@@ -76,7 +76,7 @@ function Chat() {
     const toggleMute = (user) => {
         setMuteStatus((prevStatus) => ({
             ...prevStatus,
-            [user]: !prevStatus[user], // Toggle the mute status for the specific user
+            [user]: !prevStatus[user],
         }));
     };
 
