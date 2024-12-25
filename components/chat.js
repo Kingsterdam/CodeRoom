@@ -4,14 +4,20 @@ import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
-    const { isRoomActive, setRoomCreated } = useRoomContext();
+    const { isRoomActive, setRoomCreated, stage, setStage } = useRoomContext();
     const [muteStatus, setMuteStatus] = useState({});
     const [room, setRoom] = useState("");
     const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
     const [message, setMessage] = useState(""); // State to store input message 
-    const [stage, setStage] = useState(0);
+    // const { stage, setStage } = useRoomContext();
+
+    useEffect(() => {
+        if (stage === 0) {
+            setChat([])
+        }
+    }, [stage])
 
     useEffect(() => {
         // Connect to the Socket.IO server
@@ -51,7 +57,9 @@ function Chat() {
     const handleJoinRoom = () => {
         setIsJoinRoomClicked(true);
         setIsCreateRoomClicked(false);
+        console.log("this is the stage", stage)
         setStage(1);
+        console.log("this is the stage", stage)
     };
     const handlingJoinRoom = () => {
         joinRoom(room);

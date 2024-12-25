@@ -7,9 +7,9 @@ const RoomContext = createContext();
 
 export const RoomProvider = ({ children }) => {
   const [isRoomActive, setRoomCreated] = useState(false);
-
+  const [stage, setStage] = useState(0)
   return (
-    <RoomContext.Provider value={{ isRoomActive, setRoomCreated }}>
+    <RoomContext.Provider value={{ isRoomActive, setRoomCreated, stage, setStage }}>
       {children}
     </RoomContext.Provider>
   );
