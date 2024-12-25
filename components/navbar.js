@@ -4,7 +4,7 @@ import { useRoomContext } from "../context/RoomContext";
 import "../app/globals.css";
 
 function Navbar() {
-    const { isRoomActive, setRoomCreated } = useRoomContext(); // Destructure setRoomCreated
+    const { isRoomActive, setRoomCreated, stage, setStage } = useRoomContext(); // Destructure setRoomCreated
     const [showPopup, setShowPopup] = useState(false); // State to manage the popup visibility
 
     const handlePopup = () => {
@@ -14,6 +14,7 @@ function Navbar() {
     const handleCloseRoom = () => {
         setRoomCreated(false); // Close the room
         setShowPopup(false); // Hide the popup
+        setStage(0);
     };
 
     const handleCancel = () => {
