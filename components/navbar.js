@@ -1,10 +1,11 @@
 import React, { useState } from "react";
 import Toogle from "./toggle";
 import { useRoomContext } from "../context/RoomContext";
+import { leaveRoom } from "@/utils/socketCon";
 import "../app/globals.css";
 
 function Navbar() {
-    const { isRoomActive, setRoomCreated, stage, setStage } = useRoomContext(); // Destructure setRoomCreated
+    const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
     const [showPopup, setShowPopup] = useState(false); // State to manage the popup visibility
 
     const handlePopup = () => {
@@ -14,6 +15,12 @@ function Navbar() {
     const handleCloseRoom = () => {
         setRoomCreated(false); // Close the room
         setShowPopup(false); // Hide the popup
+        const newMsg = {
+            type: "Leave",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        leaveRoom(room, newMsg)
         setStage(0);
     };
 

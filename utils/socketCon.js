@@ -41,13 +41,23 @@ export const getSocket = () => {
  * Joins a specified room on the server.
  * @param {string} room - The name of the room to join.
  */
-export const joinRoom = (room) => {
+export const joinRoom = (room, message) => {
     const socket = getSocket();
     if (room) {
-        socket.emit("joinRoom", room);
+        socket.emit("joinRoom", { room, message });
         console.log(`Joined room: ${room}`);
     } else {
         console.error("Room name is required to join a room.");
+    }
+};
+
+export const leaveRoom = (room, message) => {
+    const socket = getSocket();
+    if (room) {
+        socket.emit("leaveRoom", { room, message });
+        console.log(`Left room: ${room}`);
+    } else {
+        console.error("Cannot remove the socket");
     }
 };
 
