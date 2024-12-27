@@ -17,7 +17,7 @@ function Chat() {
         if (stage === 0) {
             setChat([])
         }
-    }, [stage])
+    }, [stage, isRoomActive])
 
     useEffect(() => {
         // Connect to the Socket.IO server
@@ -57,6 +57,14 @@ function Chat() {
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
         setRoomCreated(true)
+
+        const currentUrl = window.location.href; // Get the current URL
+        const baseUrl = currentUrl.split('?')[0]; // Remove any existing query params
+        console.log("base url", baseUrl)
+        const newUrl = `${baseUrl}?roomId=${roomId}`; // Append the roomId as a query parameter
+        console.log("new url", newUrl)
+        // Update the browser's URL without reloading the page
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleJoinRoom = () => {
@@ -76,6 +84,12 @@ function Chat() {
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
         setRoomCreated(true)
         setStage(2)
+
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        console.log("base url", baseUrl)
+        const newUrl = `${baseUrl}?roomId=${room}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleSendMessage = () => {

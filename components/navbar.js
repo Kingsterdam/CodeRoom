@@ -22,6 +22,10 @@ function Navbar() {
         }
         leaveRoom(room, newMsg)
         setStage(0);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = baseUrl;
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleCancel = () => {
