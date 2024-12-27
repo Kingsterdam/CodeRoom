@@ -46,6 +46,18 @@ function Chat() {
 
     const CreateRoom = () => {
         const roomId = generateRoomId();
+
+        try {
+            fetch("http://localhost:3300/api/v1/room", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_id: roomId
+                })
+            })
+        } catch (e) {
+            console.log("Error came while inserting room id", e)
+        }
         setRoom(roomId);  // This sets the room state
         const newMsg = {
             type: "Join",
@@ -74,11 +86,20 @@ function Chat() {
         setStage(1);
         console.log("this is the stage", stage)
     };
-    const handlingJoinRoom = () => {
+    const handlingJoinRoom = async () => {
         const newMsg = {
             type: "Join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        try {
+            await fetch(`http://localhost:3300/api/v1/room/${room}/increment`, {
+                method: "PATCH",
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        catch (e) {
+            console.log("Unable to increase Members under this room", e)
         }
         joinRoom(room, newMsg);
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
