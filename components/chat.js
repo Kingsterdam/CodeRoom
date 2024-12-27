@@ -4,14 +4,20 @@ import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
-    const { isRoomActive, setRoomCreated } = useRoomContext();
+    const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext();
     const [muteStatus, setMuteStatus] = useState({});
-    const [room, setRoom] = useState("");
+    // const [room, setRoom] = useState("");
     const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
     const [message, setMessage] = useState(""); // State to store input message 
-    const [stage, setStage] = useState(0);
+    // const { stage, setStage } = useRoomContext();
+
+    useEffect(() => {
+        if (stage === 0) {
+            setChat([])
+        }
+    }, [stage, isRoomActive])
 
     useEffect(() => {
         // Connect to the Socket.IO server
@@ -41,23 +47,49 @@ function Chat() {
     const CreateRoom = () => {
         const roomId = generateRoomId();
         setRoom(roomId);  // This sets the room state
-        joinRoom(roomId)
+        const newMsg = {
+            type: "Join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        joinRoom(roomId, newMsg)
         setRoomCreated(true);
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
         setRoomCreated(true)
+
+        const currentUrl = window.location.href; // Get the current URL
+        const baseUrl = currentUrl.split('?')[0]; // Remove any existing query params
+        console.log("base url", baseUrl)
+        const newUrl = `${baseUrl}?roomId=${roomId}`; // Append the roomId as a query parameter
+        console.log("new url", newUrl)
+        // Update the browser's URL without reloading the page
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleJoinRoom = () => {
         setIsJoinRoomClicked(true);
         setIsCreateRoomClicked(false);
+        console.log("this is the stage", stage)
         setStage(1);
+        console.log("this is the stage", stage)
     };
     const handlingJoinRoom = () => {
-        joinRoom(room);
+        const newMsg = {
+            type: "Join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        joinRoom(room, newMsg);
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
         setRoomCreated(true)
         setStage(2)
+
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        console.log("base url", baseUrl)
+        const newUrl = `${baseUrl}?roomId=${room}`;
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleSendMessage = () => {
