@@ -4,7 +4,6 @@ import React, { useState } from 'react';
 import Chat from '../components/chat';
 import Navbar from '../components/navbar';
 import Editor from '../components/Editor';
-import Output from '../components/output';
 import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
 
@@ -12,19 +11,6 @@ function App() {
   const [editors, setEditors] = useState([{ id: 1, language: 'python', name: 'file1.py', theme: 'vs-dark' }]);
   const [activeEditorId, setActiveEditorId] = useState(1);
   const [showChat, setShowChat] = useState(false);
-  const [showOutput, setShowOutput] = useState(false);
-  const [showConsole, setShowConsole] = useState(false); // Control console visibility
-  const [loading, setLoading] = useState(false);
-
-  const handleRunCode = () => {
-    setLoading(true);
-    setShowOutput(true);
-
-    // Simulate code execution or API call
-    setTimeout(() => {
-      setLoading(false); // Reset loading after the process completes
-    }, 2000); // Adjust time as per requirement
-  };
 
   const addEditor = () => {
     const newId = editors.length + 1;
@@ -87,7 +73,6 @@ function App() {
         <ErrorBoundary>
           <Navbar />
         </ErrorBoundary>
-
       </header>
 
       <div className="flex flex-grow w-full p-4 gap-4 lg:flex-row flex-col">
@@ -95,20 +80,32 @@ function App() {
           <div className="flex items-center justify-between gap-2 mb-2">
             <div className="flex gap-2">
               {editors.map((editor) => (
-                <button
-                  key={editor.id}
-                  onClick={() => handleEditorSwitch(editor.id)}
-                  className={`px-2 py-1 text-sm rounded ${editor.id === activeEditorId ? 'bg-gray-900 text-white' : 'bg-gray-300'
-                    }`}
-                >
-                  {editor.name}
-                </button>
+                <div key={editor.id} className="flex items-center justify-between gap-1">
+                  <div
+                    className={`flex items-center space-x-2 px-2 py-1 rounded cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-900 text-white' : 'bg-gray-200'
+                      }`}
+                    onClick={() => handleEditorSwitch(editor.id)} // Clicking the file name switches to the editor
+                  >
+                    <span>{editor.name}</span>
+                    <button
+                      onClick={(e) => {
+                        e.stopPropagation(); // Prevent triggering the editor switch when the "X" is clicked
+                        removeEditor(editor.id); // Close editor
+                      }}
+                      className="text-black font-bold"
+                      aria-label={`Remove editor ${editor.name}`}
+                    >
+                      <img src='./cross.png' className='w-4 h-4'/>
+                    </button>
+                  </div>
+                </div>
               ))}
               <button
                 onClick={addEditor}
-                className="bg-white text-black px-2 py-1 rounded border"
+                className="px-0 py-1 rounded"
+                aria-label="Add new editor"
               >
-                + New
+                <img src='./tab.png' width={27}/>
               </button>
             </div>
 
@@ -142,79 +139,18 @@ function App() {
                 <div key={editor.id} className="relative w-full h-full flex flex-col">
                   <div className="absolute top-0 left-0 flex items-center justify-between w-full bg-gray-800 text-white p-2 rounded-t-lg">
                     <span className="text-sm font-bold">{editor.name}</span>
-                    <button
-                      onClick={() => removeEditor(editor.id)}
-                      className="bg-red-600 text-white px-2 rounded"
-                    >
-                      X
-                    </button>
                   </div>
 
-                  <div className="flex-grow mt-10">
+                  <div className="flex-grow mt-9">
                     <ErrorBoundary>
                       <Editor language={editor.language} theme={editor.theme} />
                     </ErrorBoundary>
-
                   </div>
-                  {showConsole && (
-                    <div className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-                      style={{ height: showConsole ? '25%' : '0', overflow: 'hidden' }}>
-                      <div className='w-full h-full border rounded'>
-                        <h1 className='p-1 w-full h-1/4 border font-bold bg-slate-100'>Input</h1>
-                        <textarea
-                          className="w-full h-3/4 border-r border-l border-b rounded"
-                          placeholder="Enter your input here..."
-                        ></textarea>
-                      </div>
-                    </div>
-                  )}
-
-                  {showOutput && (
-                    <div className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-                      style={{ height: showOutput ? '30%' : '0', overflow: 'hidden' }}>
-                      <div className="w-full h-full p-1 border rounded bg-white text-black font-bold">
-                        <div className='border-b p-1'>
-                          <h1>Output</h1>
-                        </div>
-                      </div>
-                    </div>
-                  )}
                 </div>
               )
           )}
-
           {/* Console and Run buttons */}
-          <div className='flex items-center justify-between gap-2 mb-2'>
-            <button
-              onClick={() => setShowConsole(!showConsole)}
-              className="mt-1 bg-gray-900 text-white rounded-sm py-2 px-3 w-full lg:w-auto border"
-            >
-              {showConsole ? "Hide Console" : "Console"}
-            </button>
-            <button
-              onClick={handleRunCode}
-              className="mt-1 flex items-center justify-center bg-white text-black rounded-sm px-3 py-2 w-full lg:w-auto border"
-              disabled={loading} // Disable button while loading
-            >
-              {loading ? (
-                <div className="flex items-center">
-                  <span>Running</span>
-                  <img
-                    src="/running.gif" // Replace with your spinner GIF path
-                    alt="Loading..."
-                    className="ml-2 w-6.5 h-6"
-                  />
-                </div>
-              ) : (
-                <div className='flex items-center'>
-                  <span>Run</span>
-                  <img src='./play.png' className='ml-1' width={16} />
-                </div>
-              )}
-            </button>
-          </div>
         </div>
-
         <div className="hidden lg:flex flex-col lg:w-1/4 w-full bg-white rounded-sm py-4 px-2 flex-grow border">
           <ErrorBoundary>
             <Chat />

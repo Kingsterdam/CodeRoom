@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import Link from 'next/link';
 
 function Toggle() {
   const [isActive, setIsActive] = useState(false);
@@ -10,7 +11,7 @@ function Toggle() {
   return (
     <nav
       className={`${
-        isActive ? 'w-[350px] lg:w-[800px]' : 'w-[60px] lg:w-[70px]'
+        isActive ? 'w-[350px] lg:w-[600px]' : 'w-[60px] lg:w-[70px]'
       } p-4 flex items-center justify-center rounded-md transition-all duration-500 overflow-hidden`}
     >
       <ul
@@ -18,7 +19,7 @@ function Toggle() {
           isActive ? 'w-full' : 'w-0'
         } transition-all duration-500 overflow-hidden gap-2 lg:gap-8`}
       >
-        {['Share', 'Home', 'About', 'Profile', 'Settings'].map((item, index) => (
+        {['Home', 'About', 'Profile'].map((item, index) => (
           <li
             key={index}
             className={`${
@@ -27,12 +28,12 @@ function Toggle() {
                 : 'opacity-0 rotate-y-0'
             } transition-transform duration-500`}
           >
-            <a
-              href="#"
+            <Link
+              href={`/${item.toLowerCase()}`}
               className="relative text-black no-underline mx-2 lg:mx-6"
             >
               {item}
-            </a>
+            </Link>
           </li>
         ))}
       </ul>
