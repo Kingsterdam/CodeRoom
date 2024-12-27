@@ -61,6 +61,11 @@ export const leaveRoom = (room, message) => {
     }
 };
 
+export const getAllRooms = () => {
+    const socket = getSocket();
+    socket.emit("allRooms")
+}
+
 /**
  * Sends a message to a specified room.
  * @param {string} room - The name of the room to send the message to.
