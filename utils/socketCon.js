@@ -38,6 +38,38 @@ export const getSocket = () => {
 };
 
 /**
+ * Emits a language change event to the server.
+ * @param {string} language - The new language code (e.g., 'en', 'fr').
+ */
+export const changeLanguage = (room, language) => {
+    const socket = getSocket();
+    if (language) {
+        socket.emit("languageChange", { room, language });
+        console.log(`Language change event emitted: ${language}`);
+    } else {
+        console.error("Language and room are required to change language.");
+    }
+};
+
+/**
+ * Listens for languageChanged events from the server.
+ * @param {function} callback - A function to handle language change notifications.
+ */
+export const onLanguageChange = (callback) => {
+    const socket = getSocket();
+    socket.on("languageChange", callback);
+};
+
+/**
+ * Stops listening for languageChanged events.
+ */
+export const offLanguageChange = () => {
+    const socket = getSocket();
+    socket.off("languageChange");
+};
+
+
+/**
  * Joins a specified room on the server.
  * @param {string} room - The name of the room to join.
  */

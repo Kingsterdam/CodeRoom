@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 import { executeCode } from "../utils/codeExecution";
+import { connectSocket, offMessage, onMessage, sendMessage } from "@/utils/socketCon";
+import { useRoomContext } from "@/context/RoomContext";
 
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
@@ -28,11 +30,29 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
   const [showConsole, setShowConsole] = useState(false); // Control console visibility
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
-
+  const { room } = useRoomContext();
   // React to language changes and update the code sample
   useEffect(() => {
     setCode(SAMPLE_CODE[language] || SAMPLE_CODE.default);
   }, [language]);
+
+  useEffect(() => {
+    // Connect to the Socket.IO server
+    connectSocket();
+
+    // Listen for incoming messages
+    onMessage((data) => {
+      if (data.type === "code") {
+        console.log("code", data)
+        setCode(data.text)
+      }
+    });
+
+    return () => {
+      // Clean up the message listener
+      offMessage();
+    };
+  }, []);
 
   // Load additional Monaco language support dynamically if necessary
   useEffect(() => {
@@ -77,6 +97,17 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
     }
   };
 
+  function handleCodeChange(newCode) {
+    setCode(newCode);
+    const newMessage = {
+      type: "code",
+      name: "You", // Replace this with the current user's name if available
+      text: newCode,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    sendMessage(room, newMessage)
+  }
+
 
   return (
     <div className="relative w-full" style={{ height: '73vh' }}> {/* Adjust height */}
@@ -86,7 +117,7 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
         overflow={true} // Dynamically set language
         theme={theme} // Dynamically set theme
         value={code}
-        onChange={(newValue) => setCode(newValue)}
+        onChange={(newValue) => handleCodeChange(newValue)}
         options={{
           selectOnLineNumbers: true,
           minimap: { enabled: false },

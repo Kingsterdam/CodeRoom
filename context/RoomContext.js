@@ -5,7 +5,6 @@ import { createContext, useContext, useEffect, useState } from "react";
 
 const RoomContext = createContext();
 import { joinRoom } from "@/utils/socketCon";
-import LoadingSpinner from "@/components/LoadSpinner";
 export const RoomProvider = ({ children }) => {
   const [isRoomActive, setRoomCreated] = useState(false);
   const [stage, setStage] = useState(0)
@@ -24,7 +23,7 @@ export const RoomProvider = ({ children }) => {
         console.log("Found room", foundRoom)
         if (foundRoom) {
           const newMsg = {
-            type: "Join",
+            type: "join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }

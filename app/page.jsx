@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { createContext, useState } from 'react';
 import Chat from '../components/chat';
 import Navbar from '../components/navbar';
 import Editor from '../components/Editor';
@@ -11,7 +11,6 @@ function App() {
   const [editors, setEditors] = useState([{ id: 1, language: 'python', name: 'file1.py', theme: 'vs-dark' }]);
   const [activeEditorId, setActiveEditorId] = useState(1);
   const [showChat, setShowChat] = useState(false);
-
   const addEditor = () => {
     const newId = editors.length + 1;
     const newEditor = {
@@ -52,7 +51,6 @@ function App() {
       }
       return editor;
     });
-
     setEditors(updatedEditors);
   };
 
@@ -95,7 +93,7 @@ function App() {
                       className="text-black font-bold"
                       aria-label={`Remove editor ${editor.name}`}
                     >
-                      <img src='./cross.png' className='w-4 h-4'/>
+                      <img src='./cross.png' className='w-4 h-4' />
                     </button>
                   </div>
                 </div>
@@ -105,7 +103,7 @@ function App() {
                 className="px-0 py-1 rounded"
                 aria-label="Add new editor"
               >
-                <img src='./tab.png' width={27}/>
+                <img src='./tab.png' width={27} />
               </button>
             </div>
 

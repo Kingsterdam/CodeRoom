@@ -36,7 +36,7 @@ function Navbar() {
         setRoomCreated(false); // Close the room
         setShowPopup(false); // Hide the popup
         const newMsg = {
-            type: "Leave",
+            type: "leave",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }

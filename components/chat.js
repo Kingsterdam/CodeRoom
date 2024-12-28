@@ -25,7 +25,9 @@ function Chat() {
 
         // Listen for incoming messages
         onMessage((data) => {
-            setChat((prevChat) => [...prevChat, data]);
+            if (data.type !== "code") {
+                setChat((prevChat) => [...prevChat, data]);
+            }
         });
 
         return () => {
@@ -60,7 +62,7 @@ function Chat() {
         }
         setRoom(roomId);  // This sets the room state
         const newMsg = {
-            type: "Join",
+            type: "join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -82,13 +84,11 @@ function Chat() {
     const handleJoinRoom = () => {
         setIsJoinRoomClicked(true);
         setIsCreateRoomClicked(false);
-        console.log("this is the stage", stage)
         setStage(1);
-        console.log("this is the stage", stage)
     };
     const handlingJoinRoom = async () => {
         const newMsg = {
-            type: "Join",
+            type: "join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
@@ -116,6 +116,7 @@ function Chat() {
     const handleSendMessage = () => {
         if (message.trim()) {
             const newMessage = {
+                type: "chat",
                 name: "You", // Replace this with the current user's name if available
                 text: message,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
