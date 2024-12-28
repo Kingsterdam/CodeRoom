@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
 import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
+import { sendInviteCode } from '@/utils/sendInvite';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -18,6 +19,12 @@ function Chat() {
             setChat([])
         }
     }, [stage, isRoomActive])
+    const [Email, setEmail] = useState('');
+    const [emailMessage, setEmailMessage] = useState('');
+    const [messageColor, setEmailMessageColor] = useState('');
+    const [timer, setTimer] = useState(5); // Start the timer at 5 seconds
+    const [loading, setLoading] = useState(false);
+
 
     useEffect(() => {
         // Connect to the Socket.IO server
@@ -33,6 +40,28 @@ function Chat() {
             offMessage();
         };
     }, []);
+
+    useEffect(() => {
+        let timerInterval;
+
+        if (emailMessage) {
+            setLoading(false)
+            setTimer(5); // Reset the timer to 5 seconds whenever a new message is set
+            timerInterval = setInterval(() => {
+                setTimer((prevTimer) => {
+                    if (prevTimer <= 1) {
+                        clearInterval(timerInterval); // Stop the interval when time is up
+                        setEmailMessage(""); // Hide the message
+                        setEmailMessageColor(""); // Reset color
+                    }
+                    return prevTimer - 1;
+                });
+            }, 1000); // Decrement the timer every second
+        }
+
+        // Cleanup the interval on component unmount or when the message disappears
+        return () => clearInterval(timerInterval);
+    }, [emailMessage]);
 
     function generateRoomId(length = 8) {
         const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -112,6 +141,37 @@ function Chat() {
         }));
     };
 
+    const sendInvite = async () => {
+        setLoading(true)
+        if (!Email) {
+            setEmailMessage("Please enter a valid email address.");
+            setEmailMessageColor("bg-red-500"); // Error color
+            return;
+        }
+
+        try {
+            const inviteMessage = await sendInviteCode(Email);
+            if (inviteMessage) {
+                setEmailMessage("Email sent successfully!");
+                setEmailMessageColor("bg-green-600"); // Success color
+            } else {
+                setEmailMessage("Failed to send invite. Please try again.");
+                setEmailMessageColor("bg-red-500"); // Error color
+            }
+        } catch (error) {
+            setEmailMessage("An unexpected error occurred while sending the invite.");
+            setEmailMessageColor("bg-red-500"); // Error color
+        } finally {
+            setEmail(""); // Clear the input field
+
+            // Automatically hide the message after 5 seconds
+            setTimeout(() => {
+                setEmailMessage(""); // Clear the message
+                setEmailMessageColor(""); // Reset message color
+            }, 5000); // 5000ms = 5 seconds
+        }
+    };
+
     // Messages data with fixed timestamps
     const messages = [
         { name: 'Amit Mishra', text: 'Hi Prasoon, What are you doing ?', time: '10:00 AM' },
@@ -180,10 +240,31 @@ function Chat() {
                     {isRoomActive ? (
                         <div>
                             <div className='flex gap-2 w-full mt-3'>
-                                <input placeholder='Enter Users Email' className='w-3/4 p-2 border' />
-                                <button className='w-1/4 p-2 bg-gray-900 text-white rounded-sm'>+Invite</button>
+                                <input placeholder='Enter Users Email' value={Email} className='w-3/4 p-2 border' onChange={(e) => setEmail(e.target.value)} />
+                                <button className='w-1/4 p-2 bg-gray-900 text-white rounded-sm border' onClick={sendInvite} disabled={loading}>
+                                    {loading ? (
+                                        <div className='flex gap-1 text-white justify-center'>
+                                            <img src='./invitation.gif' className='w-5 h-5 filter backdrop-invert' />
+                                            <div className='text-white'>Inviting</div>
+                                        </div>
+                                    ) : (
+                                        <div className='flex gap-1 text-white justify-center rounded-sm'>
+                                            <img src='./add-group.png' className='w-5 h-5 filter brightness-0 invert' />
+                                            <div className='text-white font-semibold'>Invite</div>
+                                        </div>
+                                    )}
+                                </button>
                             </div>
-                            <div className='flex flex-col mt-5'>
+                            {emailMessage && (
+                                <div className={`mt-3 font-semibold flex justify-between ${messageColor} text-white rounded-md border p-2`}>
+                                    <p>{emailMessage}</p>
+                                    <p>{`${timer}s`}</p>
+                                </div>
+                            )}
+                            <div className='font-bold py-2 border-b px-2 mt-5'>
+                                Participants (3)
+                            </div>
+                            <div className='flex flex-col mt-1'>
                                 <ul className="list-none px-3">
                                     {users.map((user, index) => (
                                         <div key={index} className='flex w-full'>
