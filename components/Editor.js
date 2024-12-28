@@ -30,7 +30,7 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
   const [showConsole, setShowConsole] = useState(false); // Control console visibility
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
-  const { room } = useRoomContext();
+
   // React to language changes and update the code sample
   useEffect(() => {
     setCode(SAMPLE_CODE[language] || SAMPLE_CODE.default);
@@ -69,7 +69,9 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
 
   const handleRunCode = async () => {
     setLoading(true);
-    setShowOutput(false); // Reset the output visibility
+    // setShowOutput(false); // Reset the output visibility
+    setShowConsole(true); // Open the console
+    setActiveTab('output');
 
     try {
       const result = await executeCode(language, code); // Call the API
@@ -88,10 +90,10 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
 
       // Update the output state
       setOutput({ status: statusMessage, result: result.output || "No output" });
-      setShowOutput(true); // Make output visible
+      // setShowOutput(true); // Make output visible
     } catch (error) {
       setOutput({ status: "Error!", result: "Unable to execute code. Please try again." });
-      setShowOutput(true); // Ensure output visibility
+      // setShowOutput(true); // Ensure output visibility
     } finally {
       setLoading(false); // Stop the loading spinner
     }
@@ -124,18 +126,58 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
           scrollBeyondLastLine: false,
         }}
       />
+      {/* Changes code */}
       {showConsole && (
-        <div className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-          style={{ height: showConsole ? '25%' : '0', overflow: 'hidden' }}>
-          <div className='w-full h-full border rounded'>
-            <h1 className='p-1 w-full h-1/4 border font-bold bg-slate-100'>Input</h1>
-            <textarea
-              className="w-full h-3/4 border-r border-l border-b rounded"
-              placeholder="Enter your input here..."
-            ></textarea>
+        <div
+          className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
+          style={{ height: showConsole ? '30%' : '0', overflow: 'hidden' }}
+        >
+          <div className="w-full h-full border rounded flex flex-col">
+            {/* Tabs */}
+            <div className="flex h-1/4 bg-slate-100">
+              <button
+                className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900' : ''
+                  }`}
+                onClick={() => setActiveTab('input')}
+              >
+                Input
+              </button>
+              <button
+                className={`flex-1 p-1 font-bold ${activeTab === 'output' ? 'border-b border-b-gray-900' : ''
+                  }`}
+                onClick={() => setActiveTab('output')}
+              >
+                Output
+              </button>
+            </div>
+
+            {/* Content Area */}
+            <div className="w-full h-3/4 border-t overflow-hidden">
+              {activeTab === 'input' && (
+                <textarea
+                  className="w-full h-full p-2 border-r border-l border-b rounded"
+                  placeholder="Enter your input here..."
+                ></textarea>
+              )}
+              {activeTab === 'output' && (
+                <div className="w-full h-full border-r border-l border-b rounded bg-white overflow-auto">
+                  <div className="p-2">
+                    <div
+                      className={`text-xl  rounded relative bold font-bold ${output.status === "Success!" ? "text-green-700" : "text-red-700"
+                        }`}
+                      role="alert"
+                    >
+                      {output.status}
+                    </div>
+                    <pre>{output.result}</pre>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
+
 
       {showOutput && (
         <div
