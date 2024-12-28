@@ -12,27 +12,15 @@ function Chat() {
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
     const [message, setMessage] = useState(""); // State to store input message 
-    // const { stage, setStage } = useRoomContext();
-
-    useEffect(() => {
-        if (stage === 0) {
-            setChat([])
-        }
-    }, [stage, isRoomActive])
-    const [Email, setEmail] = useState('');
-    const [emailMessage, setEmailMessage] = useState('');
-    const [messageColor, setEmailMessageColor] = useState('');
-    const [timer, setTimer] = useState(5); // Start the timer at 5 seconds
-    const [loading, setLoading] = useState(false);
-
-
     useEffect(() => {
         // Connect to the Socket.IO server
         connectSocket();
 
         // Listen for incoming messages
         onMessage((data) => {
-            setChat((prevChat) => [...prevChat, data]);
+            if (data.type !== "code") {
+                setChat((prevChat) => [...prevChat, data]);
+            }
         });
 
         return () => {
@@ -75,13 +63,20 @@ function Chat() {
 
     const CreateRoom = () => {
         const roomId = generateRoomId();
-        setRoom(roomId);  // This sets the room state
-        const newMsg = {
-            type: "Join",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+
+        try {
+            fetch("http://localhost:3300/api/v1/room", {
+                method: "POST",
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    room_id: roomId
+                })
+            })
+        } catch (e) {
+            console.log("Error came while inserting room id", e)
         }
-        joinRoom(roomId, newMsg)
+        setRoom(roomId);  // This sets the room state
+        joinRoom(roomId)
         setRoomCreated(true);
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
@@ -104,12 +99,7 @@ function Chat() {
         console.log("this is the stage", stage)
     };
     const handlingJoinRoom = () => {
-        const newMsg = {
-            type: "Join",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        joinRoom(room, newMsg);
+        joinRoom(room);
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
         setRoomCreated(true)
         setStage(2)
@@ -124,6 +114,7 @@ function Chat() {
     const handleSendMessage = () => {
         if (message.trim()) {
             const newMessage = {
+                type: "chat",
                 name: "You", // Replace this with the current user's name if available
                 text: message,
                 time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })

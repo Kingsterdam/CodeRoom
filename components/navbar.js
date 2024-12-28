@@ -12,20 +12,29 @@ function Navbar() {
         setShowPopup(true); // Show the popup
     };
 
-    const handleCloseRoom = () => {
+    const handleCloseRoom = async () => {
+        try {
+            const response = await fetch(`http://localhost:3300/api/v1/room/${room}/decrement`, {
+                method: "PATCH",
+                headers: { 'Content-Type': 'application/json' },
+            })
+            if (response.ok) {
+                const room_data = await response.json()
+                console.log("Members", room_data)
+                if (room_data.updatedRoom.Members === 0) {
+                    console.log("Delete called")
+                    await fetch(`http://localhost:3300/api/v1/room/${room}`, {
+                        method: "DELETE",
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                }
+            }
+        }
+        catch (e) {
+            console.log("Unable to decrease Members under this room", e)
+        }
         setRoomCreated(false); // Close the room
         setShowPopup(false); // Hide the popup
-        const newMsg = {
-            type: "Leave",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        leaveRoom(room, newMsg)
-        setStage(0);
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('?')[0];
-        const newUrl = baseUrl;
-        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleCancel = () => {
