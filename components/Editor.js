@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useContext } from "react";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 import { executeCode } from "../utils/codeExecution";
 import { connectSocket, offMessage, onMessage, sendMessage } from "@/utils/socketCon";
@@ -24,16 +24,26 @@ int main() {
   default: `// Select a language to see "Hello, World!" code`
 };
 
-function Editor({ language = "javascript", theme = "vs-dark" }) {
+function Editor({ language, theme = "vs-dark", handleLanguageChange }) {
+  // const [language, setLanguage] = useState("python");
   const [code, setCode] = useState(SAMPLE_CODE[language] || SAMPLE_CODE.default);
   const [showOutput, setShowOutput] = useState(false);
   const [showConsole, setShowConsole] = useState(false); // Control console visibility
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
-
+  const { room } = useRoomContext();
   // React to language changes and update the code sample
+
   useEffect(() => {
     setCode(SAMPLE_CODE[language] || SAMPLE_CODE.default);
+    console.log("Language changed")
+    const newMessage = {
+      type: "language",
+      name: "You", // Replace this with the current user's name if available
+      text: language,
+      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+    };
+    sendMessage(room, newMessage)
   }, [language]);
 
   useEffect(() => {
@@ -42,6 +52,7 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
 
     // Listen for incoming messages
     onMessage((data) => {
+      console.log(data)
       if (data.type === "code") {
         console.log("code", data)
         setCode(data.text)

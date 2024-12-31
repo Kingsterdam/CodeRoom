@@ -2,6 +2,7 @@
 @tailwind components;
 @tailwind utilities;
 @import url('https://fonts.googleapis.com/css?family=Muli&display=swap');
+
 /* Default style for larger screens */
 /* Default style for larger screens */
 .chat_messages {
@@ -11,19 +12,19 @@
 /* Media query for small screens (mobile) */
 @media (max-width: 768px) {
   .chat_messages {
-    background-color: white; 
+    background-color: white;
     height: 30vh;
   }
 }
 
 @media (max-width: 768px) {
   .chat_messages {
-    background-color: white; 
-    height: 30vh; 
+    background-color: white;
+    height: 30vh;
   }
 }
 
-.name_size{
+.name_size {
   font-size: smaller;
 }
 
@@ -33,10 +34,14 @@
   font-weight: bold;
   animation: blink 1.5s infinite;
 }
+
 @keyframes blink {
-  0%, 100% {
+
+  0%,
+  100% {
     opacity: 1;
   }
+
   50% {
     opacity: 0;
   }

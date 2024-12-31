@@ -32,7 +32,7 @@ export const connectSocket = () => {
  */
 export const getSocket = () => {
     if (!socket) {
-        throw new Error("Socket not initialized. Call `connectSocket` first.");
+        // throw new Error("Socket not initialized. Call `connectSocket` first.");
     }
     return socket;
 };

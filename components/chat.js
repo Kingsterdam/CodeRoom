@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
 import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
-import { sendInviteCode } from '@/utils/sendInvite';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -12,6 +11,14 @@ function Chat() {
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
     const [message, setMessage] = useState(""); // State to store input message 
+    // const { stage, setStage } = useRoomContext();
+
+    useEffect(() => {
+        if (stage === 0) {
+            setChat([])
+        }
+    }, [stage, isRoomActive])
+
     useEffect(() => {
         // Connect to the Socket.IO server
         connectSocket();
@@ -28,28 +35,6 @@ function Chat() {
             offMessage();
         };
     }, []);
-
-    useEffect(() => {
-        let timerInterval;
-
-        if (emailMessage) {
-            setLoading(false)
-            setTimer(5); // Reset the timer to 5 seconds whenever a new message is set
-            timerInterval = setInterval(() => {
-                setTimer((prevTimer) => {
-                    if (prevTimer <= 1) {
-                        clearInterval(timerInterval); // Stop the interval when time is up
-                        setEmailMessage(""); // Hide the message
-                        setEmailMessageColor(""); // Reset color
-                    }
-                    return prevTimer - 1;
-                });
-            }, 1000); // Decrement the timer every second
-        }
-
-        // Cleanup the interval on component unmount or when the message disappears
-        return () => clearInterval(timerInterval);
-    }, [emailMessage]);
 
     function generateRoomId(length = 8) {
         const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
@@ -76,7 +61,12 @@ function Chat() {
             console.log("Error came while inserting room id", e)
         }
         setRoom(roomId);  // This sets the room state
-        joinRoom(roomId)
+        const newMsg = {
+            type: "join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        joinRoom(roomId, newMsg)
         setRoomCreated(true);
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
@@ -94,12 +84,24 @@ function Chat() {
     const handleJoinRoom = () => {
         setIsJoinRoomClicked(true);
         setIsCreateRoomClicked(false);
-        console.log("this is the stage", stage)
         setStage(1);
-        console.log("this is the stage", stage)
     };
-    const handlingJoinRoom = () => {
-        joinRoom(room);
+    const handlingJoinRoom = async () => {
+        const newMsg = {
+            type: "join",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        try {
+            await fetch(`http://localhost:3300/api/v1/room/${room}/increment`, {
+                method: "PATCH",
+                headers: { 'Content-Type': 'application/json' },
+            })
+        }
+        catch (e) {
+            console.log("Unable to increase Members under this room", e)
+        }
+        joinRoom(room, newMsg);
         setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
         setRoomCreated(true)
         setStage(2)
@@ -130,37 +132,6 @@ function Chat() {
             ...prevStatus,
             [user]: !prevStatus[user],
         }));
-    };
-
-    const sendInvite = async () => {
-        setLoading(true)
-        if (!Email) {
-            setEmailMessage("Please enter a valid email address.");
-            setEmailMessageColor("bg-red-500"); // Error color
-            return;
-        }
-
-        try {
-            const inviteMessage = await sendInviteCode(Email);
-            if (inviteMessage) {
-                setEmailMessage("Email sent successfully!");
-                setEmailMessageColor("bg-green-600"); // Success color
-            } else {
-                setEmailMessage("Failed to send invite. Please try again.");
-                setEmailMessageColor("bg-red-500"); // Error color
-            }
-        } catch (error) {
-            setEmailMessage("An unexpected error occurred while sending the invite.");
-            setEmailMessageColor("bg-red-500"); // Error color
-        } finally {
-            setEmail(""); // Clear the input field
-
-            // Automatically hide the message after 5 seconds
-            setTimeout(() => {
-                setEmailMessage(""); // Clear the message
-                setEmailMessageColor(""); // Reset message color
-            }, 5000); // 5000ms = 5 seconds
-        }
     };
 
     // Messages data with fixed timestamps
@@ -231,31 +202,10 @@ function Chat() {
                     {isRoomActive ? (
                         <div>
                             <div className='flex gap-2 w-full mt-3'>
-                                <input placeholder='Enter Users Email' value={Email} className='w-3/4 p-2 border' onChange={(e) => setEmail(e.target.value)} />
-                                <button className='w-1/4 p-2 bg-gray-900 text-white rounded-sm border' onClick={sendInvite} disabled={loading}>
-                                    {loading ? (
-                                        <div className='flex gap-1 text-white justify-center'>
-                                            <img src='./invitation.gif' className='w-5 h-5 filter backdrop-invert' />
-                                            <div className='text-white'>Inviting</div>
-                                        </div>
-                                    ) : (
-                                        <div className='flex gap-1 text-white justify-center rounded-sm'>
-                                            <img src='./add-group.png' className='w-5 h-5 filter brightness-0 invert' />
-                                            <div className='text-white font-semibold'>Invite</div>
-                                        </div>
-                                    )}
-                                </button>
+                                <input placeholder='Enter Users Email' className='w-3/4 p-2 border' />
+                                <button className='w-1/4 p-2 bg-gray-900 text-white rounded-sm'>+Invite</button>
                             </div>
-                            {emailMessage && (
-                                <div className={`mt-3 font-semibold flex justify-between ${messageColor} text-white rounded-md border p-2`}>
-                                    <p>{emailMessage}</p>
-                                    <p>{`${timer}s`}</p>
-                                </div>
-                            )}
-                            <div className='font-bold py-2 border-b px-2 mt-5'>
-                                Participants (3)
-                            </div>
-                            <div className='flex flex-col mt-1'>
+                            <div className='flex flex-col mt-5'>
                                 <ul className="list-none px-3">
                                     {users.map((user, index) => (
                                         <div key={index} className='flex w-full'>

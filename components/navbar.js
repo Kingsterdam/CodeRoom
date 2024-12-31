@@ -35,6 +35,17 @@ function Navbar() {
         }
         setRoomCreated(false); // Close the room
         setShowPopup(false); // Hide the popup
+        const newMsg = {
+            type: "leave",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+        leaveRoom(room, newMsg)
+        setStage(0);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = baseUrl;
+        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleCancel = () => {

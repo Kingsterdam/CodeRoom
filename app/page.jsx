@@ -1,16 +1,19 @@
 'use client';
 
-import React, { createContext, useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import Chat from '../components/chat';
 import Navbar from '../components/navbar';
 import Editor from '../components/Editor';
 import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
-
+import { useRoomContext } from '@/context/RoomContext';
+import { connectSocket, offMessage, onMessage } from '@/utils/socketCon';
 function App() {
+  // const [lang, setLang] = useState("python");
   const [editors, setEditors] = useState([{ id: 1, language: 'python', name: 'file1.py', theme: 'vs-dark' }]);
   const [activeEditorId, setActiveEditorId] = useState(1);
   const [showChat, setShowChat] = useState(false);
+
   const addEditor = () => {
     const newId = editors.length + 1;
     const newEditor = {
@@ -64,6 +67,7 @@ function App() {
     });
     setEditors(updatedEditors);
   };
+
 
   return (
     <div className="flex flex-col w-full min-h-screen bg-white text-black">
@@ -141,7 +145,7 @@ function App() {
 
                   <div className="flex-grow mt-9">
                     <ErrorBoundary>
-                      <Editor language={editor.language} theme={editor.theme} />
+                      <Editor language={editor.language} theme={editor.theme} handleLanguageChange={handleLanguageChange} />
                     </ErrorBoundary>
                   </div>
                 </div>
