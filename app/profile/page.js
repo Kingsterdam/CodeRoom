@@ -5,11 +5,12 @@ import ErrorBoundary from '../../components/ErrorBoundry';
 
 function Profile() {
   const user = {
-    name: "John Doe",
-    email: "johndoe@example.com",
-    totalRoomsJoined: 15,
-    totalRoomsCreated: 5,
-    totalCodeRuns: 120,
+    name: localStorage.getItem('userName') || 'Guest',
+    email: localStorage.getItem('userEmail') || 'guest@example.com',
+    picture: localStorage.getItem('userPicture') || './man.png',
+    totalRoomsJoined: localStorage.getItem('totalRoomsJoined') || 0,
+    totalRoomsCreated: localStorage.getItem('totalRoomsCreated') || 0,
+    totalCodeRuns: localStorage.getItem('totalCodeRuns') || 0,
   };
 
   return (
@@ -23,9 +24,9 @@ function Profile() {
         <div className="bg-white shadow-xl rounded-md p-6 w-11/12 max-w-md">
           <div className="text-center mb-6">
             <div className="w-20 h-20 mx-auto rounded-full bg-gray-200 flex items-center justify-center text-gray-400 text-3xl font-bold">
-              JD
+              <img src={user.picture} alt="User" className="w-16 h-16 rounded-full" />
             </div>
-            <h2 className="text-2xl font-bold text-gray-800 mt-2">John Doe</h2>
+            <h2 className="text-2xl font-bold text-gray-800 mt-2">{user.name}</h2>
             <p className="text-gray-600 text-sm">{user.email}</p>
           </div>
 

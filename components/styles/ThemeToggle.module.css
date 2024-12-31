@@ -1,0 +1,30 @@
+.themeButton {
+    padding: 8px 16px;
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 16px;
+    border: none;
+    transition: all 0.3s ease;
+  }
+  
+  /* Light theme button styles */
+  .light-theme .themeButton {
+    background-color: #f3f4f6;
+    color: #1f2937;
+    border: 1px solid #e5e7eb;
+  }
+  
+  .light-theme .themeButton:hover {
+    background-color: #e5e7eb;
+  }
+  
+  /* Dark theme button styles */
+  .dark-theme .themeButton {
+    background-color: #374151;
+    color: #f9fafb;
+    border: 1px solid #4b5563;
+  }
+  
+  .dark-theme .themeButton:hover {
+    background-color: #4b5563;
+  }

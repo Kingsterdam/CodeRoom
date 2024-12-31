@@ -3,6 +3,8 @@ import Toogle from "./toggle";
 import { useRoomContext } from "../context/RoomContext";
 import { leaveRoom } from "@/utils/socketCon";
 import "../app/globals.css";
+import AuthButtons from "./authButtons";
+import ThemeToggle from "./themeToggle";
 
 function Navbar() {
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
@@ -53,7 +55,7 @@ function Navbar() {
     };
 
     return (
-        <div className="flex items-center justify-between">
+        <div className="flex items-center justify-between ">
             <div className="text-xl font-bold text-black">
                 CodeRoom
             </div>
@@ -63,39 +65,42 @@ function Navbar() {
                         onClick={handlePopup} // Trigger the popup on click
                     >
                         <span className="green-dot">●</span>
-                        <span className="hidden md:inline px-1.5 text-green-700">
+                        <span className="hidden md:inline px-1.5 text-green-700 font-semibold">
                             Room Active
                         </span>
                     </button>
                 )}
             </div>
-            <Toogle />
+            <div className="flex items-center p-2 gap-3">
+                <ThemeToggle/>
+                <AuthButtons />
+            </div>
 
-            {/* Popup Modal */}
             {showPopup && (
-                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                    <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                        <p className="text-lg font-semibold mb-4">
-                            Are you sure you want to leave the room?
-                        </p>
-                        <div className="flex justify-center gap-4">
-                            <button
-                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                                onClick={handleCloseRoom}
-                            >
-                                Leave Room
-                            </button>
-                            <button
-                                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
-                                onClick={handleCancel}
-                            >
-                                Cancel
-                            </button>
+                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                            <p className="text-lg font-semibold mb-4">
+                                Are you sure you want to leave the room?
+                            </p>
+                            <div className="flex justify-center gap-4">
+                                <button
+                                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                                    onClick={handleCloseRoom}
+                                >
+                                    Leave Room
+                                </button>
+                                <button
+                                    className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+                                    onClick={handleCancel}
+                                >
+                                    Cancel
+                                </button>
+                            </div>
                         </div>
                     </div>
-                </div>
-            )}
-        </div>
+                )
+            }
+        </div >
     );
 }
 
