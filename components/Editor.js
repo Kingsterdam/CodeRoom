@@ -1,6 +1,9 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 import { executeCode } from "../utils/codeExecution";
+import html2canvas from "html2canvas";
+import DrawingLayer from './drawingLayer';
+import { ErrorBoundary } from "next/dist/client/components/error-boundary";
 
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
@@ -22,18 +25,28 @@ int main() {
   default: `// Select a language to see "Hello, World!" code`
 };
 
-function Editor({ language = "javascript", theme = "vs-dark" }) {
-  const [code, setCode] = useState(SAMPLE_CODE[language] || SAMPLE_CODE.default);
+const Editor = forwardRef(({
+  language = "javascript",
+  theme = "vs-dark",
+  initialContent = "",
+  onContentChange = () => { } // Add this prop with default empty function
+}, ref) => {
+  const [code, setCode] = useState(initialContent || SAMPLE_CODE[language] || SAMPLE_CODE.default);
   const [showOutput, setShowOutput] = useState(false);
-  const [showConsole, setShowConsole] = useState(false); // Control console visibility
+  const [showConsole, setShowConsole] = useState(false);
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
   const [activeTab, setActiveTab] = useState('input');
+  const editorRef = useRef(null);
+  const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
 
   // React to language changes and update the code sample
   useEffect(() => {
-    setCode(SAMPLE_CODE[language] || SAMPLE_CODE.default);
-  }, [language]);
+    const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
+    setCode(sampleCode); // Update code based on language
+    onContentChange(sampleCode); // Notify parent about the change
+  }, [language]); // Triggered when language or initialContent changes
+
 
   // Load additional Monaco language support dynamically if necessary
   useEffect(() => {
@@ -47,6 +60,42 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
       }
     });
   }, [language]);
+
+  const takeSnapshot = async () => {
+    if (editorRef.current) {
+      try {
+        const canvas = await html2canvas(editorRef.current, {
+          backgroundColor: "#1e1e1e",
+          scale: 2,
+          logging: false,
+          useCORS: true,
+        });
+
+        const dataUrl = canvas.toDataURL("image/png");
+        const link = document.createElement("a");
+        link.href = dataUrl;
+        link.download = `code-snapshot-${language}.png`;
+        link.click();
+      } catch (error) {
+        console.error("Error taking snapshot:", error);
+      }
+    }
+  };
+
+  const handleDrawing = () => {
+    setIsDrawModeEnabled(prevState => !prevState);
+  };
+
+
+  useImperativeHandle(ref, () => ({
+    takeSnapshot,
+    handleDrawing
+  }));
+
+  const handleCodeChange = (newValue) => {
+    setCode(newValue);
+    onContentChange(newValue); // Notify parent component of content change
+  };
 
   const handleRunCode = async () => {
     setLoading(true);
@@ -82,29 +131,40 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
 
 
   return (
-    <div className="relative w-full" style={{ height: '73vh' }}> {/* Adjust height */}
+    <div className="relative w-full" ref={editorRef} style={{ height: '73vh' }}> {/* Adjust height */}
       <MonacoEditor
-        height="100%" // This will take 100% of the parent's height
+        height="100%"
         language={language}
-        overflow={true} // Dynamically set language
-        theme={theme} // Dynamically set theme
+        overflow={true}
+        theme={theme}
         value={code}
         onChange={(newValue) => setCode(newValue)}
         options={{
           selectOnLineNumbers: true,
           minimap: { enabled: false },
           scrollBeyondLastLine: false,
+          automaticLayout: true, // Add this option
+          fontSize: 14, // Optional: set font size
+          readOnly: isDrawModeEnabled
         }}
       />
+      <ErrorBoundary>
+        <DrawingLayer
+          containerRef={editorRef}
+          isEnabled={isDrawModeEnabled}
+        />
+      </ErrorBoundary>
+
+
       {/* Changes code */}
       {showConsole && (
         <div
           className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-          style={{ height: showConsole ? '30%' : '0', overflow: 'hidden' }}
+          style={{ height: showConsole ? '40%' : '0', overflow: 'hidden' }}
         >
           <div className="w-full h-full border rounded flex flex-col">
             {/* Tabs */}
-            <div className="flex h-1/4 bg-slate-100">
+            <div className="flex h-1/6 bg-slate-100">
               <button
                 className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900' : ''
                   }`}
@@ -122,7 +182,7 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
             </div>
 
             {/* Content Area */}
-            <div className="w-full h-3/4 border-t overflow-hidden">
+            <div className="w-full h-5/6 border-t overflow-hidden">
               {activeTab === 'input' && (
                 <textarea
                   className="w-full h-full p-2 border-r border-l border-b rounded"
@@ -149,33 +209,6 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
       )}
 
 
-      {showOutput && (
-        <div
-          className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-          style={{ height: '30%', overflow: 'auto' }}
-        >
-          <div className="w-full h-full p-1 border rounded bg-white text-black font-bold">
-            <div className="flex justify-between border-b p-1">
-              <h1>Output</h1>
-              <div onClick={() => setShowOutput(false)} className="cursor-pointer">
-                <img src="./down.png" className="cursor-pointer" width={22} />
-              </div>
-            </div>
-            <div className="p-2">
-              <div
-                className={`text-xl py-1 rounded relative bold ${output.status === "Success!" ? "text-green-700" : "text-red-700"
-                  }`}
-                role="alert"
-              >
-                {output.status}
-              </div>
-              <pre>{output.result}</pre>
-            </div>
-          </div>
-        </div>
-      )}
-
-
       <div className='flex items-center justify-between gap-2 mb-2'>
         <button
           onClick={() => setShowConsole(!showConsole)}
@@ -189,7 +222,7 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
           disabled={loading} // Disable button while loading
         >
           {loading ? (
-            <div className="flex items-center">
+            <div className="flex items-center text-green-500">
               <span>Running</span>
               <img
                 src="/running.gif" // Replace with your spinner GIF path
@@ -198,15 +231,15 @@ function Editor({ language = "javascript", theme = "vs-dark" }) {
               />
             </div>
           ) : (
-            <div className='flex items-center'>
+            <div className='flex items-center text-green-600 font-semibold'>
               <span>Run</span>
-              <img src='./play.png' className='ml-1' width={16} />
+              <img src='./play.png' className='ml-1 font-semibold' width={16} />
             </div>
           )}
         </button>
       </div>
     </div>
   );
-}
+});
 
 export default Editor;

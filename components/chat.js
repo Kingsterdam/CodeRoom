@@ -148,9 +148,10 @@ function Chat() {
             setEmailMessageColor("bg-red-500"); // Error color
             return;
         }
-
+        const url = window.location.href;
         try {
-            const inviteMessage = await sendInviteCode(Email);
+            const inviteMessage = await sendInviteCode(Email, url);
+            console.log(url)
             if (inviteMessage) {
                 setEmailMessage("Email sent successfully!");
                 setEmailMessageColor("bg-green-600"); // Success color
@@ -171,23 +172,6 @@ function Chat() {
             }, 5000); // 5000ms = 5 seconds
         }
     };
-
-    // Messages data with fixed timestamps
-    const messages = [
-        { name: 'Amit Mishra', text: 'Hi Prasoon, What are you doing ?', time: '10:00 AM' },
-        { name: 'Prasoon Saini', text: 'Nothing just coding, what are you doing ?', time: '10:02 AM' },
-        { name: 'Amit Mishra', text: 'I am implementing a website for my simple project.', time: '10:03 AM' },
-        { name: 'Prasoon Saini', text: 'Where is Abhinav ? Do you live together?', time: '10:05 AM' },
-        { name: 'Abhinav Singh Pundir', text: 'Hey Prasoon & Amit, Here I am, where you both are?', time: '10:07 AM' },
-        { name: 'Amit Mishra', text: 'Hey Abhinav, Yes I am coming in January.', time: '10:10 AM' },
-        { name: 'Abhinav Singh Pundir', text: 'Hey Prasoon & Amit, Here I am, where you both are? I am currently in Bangalore looking for both of you. Are you coming to Bangalore to meet me?', time: '10:10 AM' },
-        { name: 'Amit Mishra', text: 'Hey Abhinav, Yes I am coming in January.', time: '10:15 AM' },
-        { name: 'Prasoon Saini', text: 'Hey Abhinav, I am also coming in last December.', time: '10:16 AM' },
-        { name: 'Abhinav Singh Pundir', text: 'Living in Electronic City Phase 1, please come.', time: '10:18 AM' },
-        { name: 'Amit Mishra', text: 'Okay Abhinav, will meet.', time: '10:20 AM' },
-        { name: 'Abhinav Singh Pundir', text: 'I am leaving, bye.', time: '10:21 AM' },
-        { name: 'Prasoon Saini', text: 'Bye, leaving.', time: '10:25 AM' }
-    ];
 
     // Users data
     const users = ['Amit Mishra', 'Prasoon Saini', 'Abhinav Singh Pundir'];
@@ -215,24 +199,40 @@ function Chat() {
             {activeTab === 'chat' && (
                 <div className="flex-1 flex-col-reverse overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 chat_messages py-4 px-1">
                     {chat.map((message, index) => (
-                        <div key={index} className={`flex ${message.name === 'You' ? 'justify-end' : 'justify-start'} mb-4`}>
+                        <div
+                            key={index}
+                            className={`flex ${message.type === 'Join' || message.type === 'Leave'
+                                ? 'justify-center'
+                                : message.name === 'You'
+                                    ? 'justify-end'
+                                    : 'justify-start'
+                                } mb-4`}
+                        >
                             <div className={`flex flex-col max-w-[80%] ${message.name === 'You' ? 'items-end' : 'items-start'}`}>
-                                <div className="px-1 text-gray-400 name_size">
-                                    {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
-                                </div>
-                                <div
-                                    className={`text-wrap p-2 ${message.name === 'You' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'
-                                        } rounded-md border`}
-                                >
-                                    {message.text || "No content"}
-                                </div>
+                                {/* Check if message type is 'Join' */}
+                                {message.type === 'Join' || message.type === 'Leave' ? (
+                                    <div className="px-1 text-gray-800 name_size italic">
+                                        <span className="text-sm text-gray-400">{message.text}</span>
+                                    </div>
+                                ) : (
+                                    <>
+                                        <div className="px-1 text-gray-400 name_size">
+                                            {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
+                                        </div>
+                                        <div
+                                            className={`text-wrap p-2 ${message.name === 'You' ? 'bg-gray-800 text-white' : 'bg-gray-200 text-black'
+                                                } rounded-md border`}
+                                        >
+                                            {message.text || "No content"}
+                                        </div>
+                                    </>
+                                )}
                             </div>
                         </div>
                     ))}
-
                 </div>
-
             )}
+
 
             {/* Users Section */}
             {activeTab === 'users' && (
@@ -241,19 +241,29 @@ function Chat() {
                         <div>
                             <div className='flex gap-2 w-full mt-3'>
                                 <input placeholder='Enter Users Email' value={Email} className='w-3/4 p-2 border' onChange={(e) => setEmail(e.target.value)} />
-                                <button className='w-1/4 p-2 bg-gray-900 text-white rounded-sm border' onClick={sendInvite} disabled={loading}>
+                                <button
+                                    className={`w-1/4 p-2 rounded-sm border ${loading ? 'bg-white text-black cursor-not-allowed' : 'bg-gray-900 text-white'
+                                        }`}
+                                    onClick={sendInvite}
+                                    disabled={loading}
+                                >
                                     {loading ? (
-                                        <div className='flex gap-1 text-white justify-center'>
-                                            <img src='./invitation.gif' className='w-5 h-5 filter backdrop-invert' />
-                                            <div className='text-white'>Inviting</div>
+                                        <div className="flex gap-1 justify-center">
+                                            <img src="./invitation.gif" className="w-7 h-6" alt="Loading" />
+                                            <div className="font-semibold">Inviting</div>
                                         </div>
                                     ) : (
-                                        <div className='flex gap-1 text-white justify-center rounded-sm'>
-                                            <img src='./add-group.png' className='w-5 h-5 filter brightness-0 invert' />
-                                            <div className='text-white font-semibold'>Invite</div>
+                                        <div className="flex gap-1 justify-center">
+                                            <img
+                                                src="./add-group.png"
+                                                className="w-5 h-5 filter brightness-0 invert"
+                                                alt="Add Group"
+                                            />
+                                            <div className="font-semibold">Invite</div>
                                         </div>
                                     )}
                                 </button>
+
                             </div>
                             {emailMessage && (
                                 <div className={`mt-3 font-semibold flex justify-between ${messageColor} text-white rounded-md border p-2`}>
@@ -328,11 +338,18 @@ function Chat() {
                         )}
                         {(isCreateRoomClicked || stage === 2) && (
                             <div className="flex gap-2 mt-2 w-full">
-                                <input
+                                <textarea
                                     placeholder="Enter your message here"
-                                    value={message} // Bind input to message state
+                                    value={message} // Bind textarea to message state
                                     onChange={(e) => setMessage(e.target.value)} // Update message state on input change
-                                    className="w-3/4 rounded-md border p-2 flex overflow-auto scrollbar-thin"
+                                    onKeyDown={(e) => {
+                                        if (e.key === 'Enter' && !e.shiftKey) {
+                                            e.preventDefault(); // Prevent newlines
+                                            handleSendMessage(); // Call the existing send function
+                                        }
+                                    }}
+                                    className="w-3/4 rounded-sm border p-2 flex overflow-auto scrollbar-thin resize-none"
+                                    rows={1} // Default height of 2 lines
                                 />
                                 <button
                                     className="bg-gray-900 text-white rounded-sm py-0 w-1/4 border"
@@ -342,8 +359,6 @@ function Chat() {
                                 </button>
                             </div>
                         )}
-
-
                     </div>
                 )
             )}
