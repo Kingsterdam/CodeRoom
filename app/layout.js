@@ -3,7 +3,8 @@ import "./globals.css";
 import { RoomProvider } from "../context/RoomContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
-
+import room from "@/components/room";
+room
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],

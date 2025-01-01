@@ -1,17 +1,29 @@
 'use client';
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import Navbar from '../../components/navbar';
 import ErrorBoundary from '../../components/ErrorBoundry';
 
 function Profile() {
-  const user = {
-    name: localStorage.getItem('userName') || 'Guest',
-    email: localStorage.getItem('userEmail') || 'guest@example.com',
-    picture: localStorage.getItem('userPicture') || './man.png',
-    totalRoomsJoined: localStorage.getItem('totalRoomsJoined') || 0,
-    totalRoomsCreated: localStorage.getItem('totalRoomsCreated') || 0,
-    totalCodeRuns: localStorage.getItem('totalCodeRuns') || 0,
-  };
+  const [user, setUser] = useState({
+    name: 'Guest',
+    email: 'guest@example.com',
+    picture: './man.png',
+    totalRoomsJoined: 0,
+    totalRoomsCreated: 0,
+    totalCodeRuns: 0,
+  });
+
+  useEffect(() => {
+    const userData = {
+      name: localStorage.getItem('userName') || 'Guest',
+      email: localStorage.getItem('userEmail') || 'guest@example.com',
+      picture: localStorage.getItem('userPicture') || './man.png',
+      totalRoomsJoined: localStorage.getItem('totalRoomsJoined') || 0,
+      totalRoomsCreated: localStorage.getItem('totalRoomsCreated') || 0,
+      totalCodeRuns: localStorage.getItem('totalCodeRuns') || 0,
+    };
+    setUser(userData);
+  }, []); // Empty dependency array ensures this runs only once after the component mounts.
 
   return (
     <div className="h-screen flex flex-col">

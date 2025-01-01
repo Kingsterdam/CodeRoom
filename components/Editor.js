@@ -1,9 +1,11 @@
-import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle, useContext } from "react";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 import { executeCode } from "../utils/codeExecution";
 import html2canvas from "html2canvas";
 import DrawingLayer from './drawingLayer';
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
+import { useRoomContext } from "@/context/RoomContext";
+import { connectSocket, offMessage, onMessage, sendMessage } from "@/utils/socketCon";
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
 console.log("Hello, World!");`,
@@ -35,7 +37,7 @@ const Editor = forwardRef(({
   const [showConsole, setShowConsole] = useState(false);
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
-  // const { room } = useRoomContext();
+  const { room } = useRoomContext();
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   // React to language changes and update the code sample
@@ -59,6 +61,23 @@ const Editor = forwardRef(({
       }
     });
   }, [language]);
+
+  useEffect(() => {
+    // Connect to the Socket.IO server
+    connectSocket();
+    // Listen for incoming messages
+    onMessage((data) => {
+      console.log(data)
+      if (data.type === "code") {
+        console.log("code", data)
+        setCode(data.text)
+      }
+    });
+    return () => {
+      // Clean up the message listener
+      offMessage();
+    };
+  }, []);
 
   const takeSnapshot = async () => {
     if (editorRef.current) {
@@ -125,19 +144,19 @@ const Editor = forwardRef(({
 
   function handleCodeChange(newCode) {
     setCode(newCode);
-    onContentChange(newValue);
+    onContentChange(newCode);
     const newMessage = {
       type: "code",
       name: "You", // Replace this with the current user's name if available
       text: newCode,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    // sendMessage(room, newMessage)
+    sendMessage(room, newMessage)
   }
 
 
   return (
-    <div className="relative w-full" ref={editorRef} style={{ height: '73vh' }}> {/* Adjust height */}
+    <div className="relative w-full" ref={editorRef} style={{ height: '91%' }}> {/* Adjust height */}
       <MonacoEditor
         height="100%"
         language={language}
@@ -218,13 +237,13 @@ const Editor = forwardRef(({
       <div className='flex items-center justify-between gap-2 mb-2'>
         <button
           onClick={() => setShowConsole(!showConsole)}
-          className="mt-1 bg-gray-900 text-white rounded-sm py-2 px-3 w-full lg:w-auto border"
+          className="mt-1 bg-gray-900 text-white rounded-lg py-2 px-3 w-full lg:w-auto border"
         >
           {showConsole ? "Hide Console" : "Console"}
         </button>
         <button
           onClick={handleRunCode}
-          className="mt-1 flex items-center justify-center bg-white text-black rounded-sm px-3 py-2 w-full lg:w-auto border"
+          className="mt-1 flex items-center justify-center bg-white text-black rounded-lg px-3 py-2 w-full lg:w-auto border"
           disabled={loading} // Disable button while loading
         >
           {loading ? (
