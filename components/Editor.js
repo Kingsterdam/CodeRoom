@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef, forwardRef, useImperativeHandle } from "react";
 import MonacoEditor, { loader } from "@monaco-editor/react";
 import { executeCode } from "../utils/codeExecution";
 import html2canvas from "html2canvas";
@@ -35,7 +35,7 @@ const Editor = forwardRef(({
   const [showConsole, setShowConsole] = useState(false);
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
-  const { room } = useRoomContext();
+  // const { room } = useRoomContext();
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   // React to language changes and update the code sample
@@ -91,11 +91,6 @@ const Editor = forwardRef(({
     handleDrawing
   }));
 
-  const handleCodeChange = (newValue) => {
-    setCode(newValue);
-    onContentChange(newValue); // Notify parent component of content change
-  };
-
   const handleRunCode = async () => {
     setLoading(true);
     // setShowOutput(false); // Reset the output visibility
@@ -130,13 +125,14 @@ const Editor = forwardRef(({
 
   function handleCodeChange(newCode) {
     setCode(newCode);
+    onContentChange(newValue);
     const newMessage = {
       type: "code",
       name: "You", // Replace this with the current user's name if available
       text: newCode,
       time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     };
-    sendMessage(room, newMessage)
+    // sendMessage(room, newMessage)
   }
 
 

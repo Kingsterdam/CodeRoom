@@ -287,7 +287,14 @@ function App() {
 
                   <div className="flex-grow mt-9">
                     <ErrorBoundary>
-                      <Editor language={editor.language} theme={editor.theme} />
+                      <Editor
+                        key={editor.id}
+                        language={editor.language}
+                        theme={editor.theme}
+                        initialContent={editor.content}
+                        onContentChange={(content) => handleContentChange(editor.id, content)}
+                        ref={editorRef}
+                      />
                     </ErrorBoundary>
                   </div>
                 </div>
