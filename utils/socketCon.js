@@ -51,20 +51,27 @@ export const joinRoom = (room, message) => {
     }
 };
 
+/**
+ * Leaves a specified room on the server.
+ * @param {string} room - The name of the room to leave.
+ */
 export const leaveRoom = (room, message) => {
     const socket = getSocket();
     if (room) {
         socket.emit("leaveRoom", { room, message });
         console.log(`Left room: ${room}`);
     } else {
-        console.error("Cannot remove the socket");
+        console.error("Room name is required to leave a room.");
     }
 };
 
+/**
+ * Retrieves all available rooms.
+ */
 export const getAllRooms = () => {
     const socket = getSocket();
-    socket.emit("allRooms")
-}
+    socket.emit("allRooms");
+};
 
 /**
  * Sends a message to a specified room.
@@ -82,6 +89,21 @@ export const sendMessage = (room, message) => {
 };
 
 /**
+ * Sends code updates to a specified room.
+ * @param {string} room - The name of the room to send the code updates to.
+ * @param {string} code - The code content to share.
+ */
+export const sendCodeUpdate = (room, code) => {
+    const socket = getSocket();
+    if (room && code !== undefined) {
+        socket.emit("codeUpdate", { room, code });
+        console.log(`Code update sent to room ${room}.`);
+    } else {
+        console.error("Room and code are required to send updates.");
+    }
+};
+
+/**
  * Listens for incoming messages from the server.
  * @param {function} callback - A function to handle incoming messages.
  */
@@ -91,9 +113,26 @@ export const onMessage = (callback) => {
 };
 
 /**
+ * Listens for incoming code updates from the server.
+ * @param {function} callback - A function to handle code updates.
+ */
+export const onCodeUpdate = (callback) => {
+    const socket = getSocket();
+    socket.on("codeUpdate", callback);
+};
+
+/**
  * Stops listening for incoming messages.
  */
 export const offMessage = () => {
     const socket = getSocket();
     socket.off("message");
+};
+
+/**
+ * Stops listening for code updates.
+ */
+export const offCodeUpdate = () => {
+    const socket = getSocket();
+    socket.off("codeUpdate");
 };

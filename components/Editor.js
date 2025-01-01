@@ -131,7 +131,7 @@ const Editor = forwardRef(({
 
 
   return (
-    <div className="relative w-full" ref={editorRef} style={{ height: '73vh' }}> {/* Adjust height */}
+    <div className="relative w-full" ref={editorRef} style={{height: '91%' }}> {/* Adjust height */}
       <MonacoEditor
         height="100%"
         language={language}
@@ -212,13 +212,13 @@ const Editor = forwardRef(({
       <div className='flex items-center justify-between gap-2 mb-2'>
         <button
           onClick={() => setShowConsole(!showConsole)}
-          className="mt-1 bg-gray-900 text-white rounded-sm py-2 px-3 w-full lg:w-auto border"
+          className="mt-1 bg-gray-900 text-white rounded-lg py-2 px-3 w-full lg:w-auto border"
         >
           {showConsole ? "Hide Console" : "Console"}
         </button>
         <button
           onClick={handleRunCode}
-          className="mt-1 flex items-center justify-center bg-white text-black rounded-sm px-3 py-2 w-full lg:w-auto border"
+          className="mt-1 flex items-center justify-center bg-white text-black rounded-lg px-3 py-2 w-full lg:w-auto border"
           disabled={loading} // Disable button while loading
         >
           {loading ? (

@@ -98,10 +98,10 @@ const AuthButtons = () => {
     }
 
     return (
-        <div className="auth-buttons">
+        <div className="auth-buttons relative z-50">
             {/* Popup for login */}
             {showPopup && !user && (
-                <div className={`absolute top-0 right-2 mt-2 mr-4 py-2 px-2 bg-white shadow-md rounded-lg w-64 h-auto ${loading ? 'border-2 border-gray-900 animate-pulse' : 'border border-gray-300'}`}>
+                <div className={`absolute top-0 right-2 mt-2 mr-4 py-2 px-2 bg-white shadow-md rounded-lg w-64 h-auto z-50 ${loading ? 'border-2 border-gray-900 animate-pulse' : 'border border-gray-300'}`}>
                     <div className="flex flex-col items-center relative w-full">
                         <div className="flex items-center justify-between w-full text-black border-b mb-3 p-2 text-sm">
                             <div className="flex-1 text-left font-normal">
@@ -140,7 +140,7 @@ const AuthButtons = () => {
                     <img
                         src={profilePicture || './man.png'}
                         alt="User Avatar"
-                        className="w-10 h-10 rounded-full cursor-pointer"
+                        className="w-8 h-8 rounded-full cursor-pointer"
                         onClick={toggleProfilePopup}
                     />
                 </div>
@@ -148,7 +148,7 @@ const AuthButtons = () => {
                 <div className="flex items-center space-x-1">
                     <button
                         onClick={handleLogin} // Assuming you have a handleLogin function for logging in
-                        className="px-4 py-2 bg-gray-900 text-white rounded-lg font-semibold"
+                        className="px-4 py-1 bg-gray-900 text-white rounded-lg font-semibold"
                     >
                         Login
                     </button>
@@ -158,7 +158,7 @@ const AuthButtons = () => {
 
             {/* Profile popup for logged-in users */}
             {showProfilePopup && user && (
-                <div className="absolute top-11 right-5 mt-2 w-48 font-semibold bg-white p-4 border rounded-md">
+                <div className="absolute top-9 right-3 w-40 font-semibold bg-white p-2 border rounded-md">
                     <div className="flex flex-col items-center w-full">
                         <div className="text-md">{user.displayName}</div>
                         <button className='mt-2 py-2 px-4 text-white bg-blue-600 hover:bg-blue-800 border w-full rounded-full'>

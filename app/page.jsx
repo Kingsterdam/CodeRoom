@@ -9,6 +9,7 @@ import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
 
+
 function App() {
   const [editors, setEditors] = useState([{
     id: 1,
@@ -22,23 +23,26 @@ function App() {
   const [copyStatus, setCopyStatus] = useState(''); // For copy feedback
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
+  const [idCounter, setIdCounter] = useState(2);
+
 
   useEffect(() => {
     console.log('Editors state updated:', editors);
   }, [editors]);
 
   const addEditor = () => {
-    const newId = editors.length + 1;
     const newEditor = {
-      id: newId,
+      id: idCounter,
       language: 'python',
-      name: `file${newId}.py`,
+      name: `file${idCounter}.py`,
       theme: 'vs-dark',
       content: '',
     };
     setEditors([...editors, newEditor]);
-    setActiveEditorId(newId);
+    setActiveEditorId(idCounter);
+    setIdCounter((prev) => prev + 1);
   };
+
   const handleDraw = () => {
     setIsDrawModeEnabled(prevState => !prevState);
     editorRef.current.handleDrawing();
@@ -162,52 +166,56 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col w-full min-h-screen bg-gray-100 text-black">
-      <header className="w-full px-4">
+    <div className="flex flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 bg-gradient-to-br from-white via-orange-50 to-white">
+    {/* Changed to h-screen and added overflow-hidden */}
+      <header className="w-full px-2 sm:px-4 flex-shrink-0"> {/* Added flex-shrink-0 */}
         <ErrorBoundary>
           <Navbar />
         </ErrorBoundary>
       </header>
 
-      <div className="flex flex-grow w-full p-4 gap-2 lg:flex-row flex-col">
+      <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col "> {/* Added overflow-hidden */}
         <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white rounded-lg shadow-lg">
-          <div className="flex items-center justify-between gap-2 mb-1">
-            <div className="flex gap-2">
+          {/* Tab Bar */}
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
+            {/* Tabs Section */}
+            <div className="flex flex-wrap gap-1 w-full sm:w-auto">
               {editors.map((editor) => (
                 <div key={editor.id} className="flex items-center justify-between gap-1">
                   <div
-                    className={`flex items-center space-x-2 px-2 py-1 rounded cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-900 text-white' : 'bg-gray-200'
+                    className={`flex items-center space-x-1 text-xs sm:text-sm px-1 py-1 rounded-lg border cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-200 text-black' : 'bg-white'
                       }`}
                     onClick={() => handleEditorSwitch(editor.id)}
                   >
-                    <span>{editor.name}</span>
+                    <span className="max-w-[100px] sm:max-w-[150px] truncate">{editor.name}</span>
                     <button
                       onClick={(e) => {
                         e.stopPropagation();
                         removeEditor(editor.id);
                       }}
-                      className="text-black font-bold"
+                      className="text-black font-bold ml-1"
                       aria-label={`Remove editor ${editor.name}`}
                     >
-                      <img src='./cross.png' className='w-4 h-4 filter brightness-0 invert' alt="Remove" />
+                      <img src='./cross.png' className='w-2 h-2 sm:w-3 sm:h-3 filter brightness-0' alt="Remove" />
                     </button>
                   </div>
                 </div>
               ))}
               <button
                 onClick={addEditor}
-                className="px-0 py-1 rounded"
+                className="p-1 sm:p-2 hover:bg-gray-200 hover:rounded-full"
                 aria-label="Add new editor"
               >
-                <img src='./tab.png' width={27} alt="Add tab" />
+                <img src='./plus.png' className="w-3 h-3 sm:w-4 sm:h-4" alt="Add tab" />
               </button>
             </div>
 
-            <div className="flex gap-2">
+            {/* Language and Theme Selectors */}
+            <div className="flex gap-2 text-xs sm:text-sm w-full sm:w-auto">
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.language}
                 onChange={(e) => handleLanguageChange(activeEditorId, e.target.value)}
-                className="bg-white text-black p-1 rounded border"
+                className="bg-gray-100 text-black p-1 rounded-lg flex-1 sm:flex-none"
               >
                 <option value="python">Python</option>
                 <option value="cpp">C++</option>
@@ -217,7 +225,7 @@ function App() {
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.theme}
                 onChange={(e) => handleThemeChange(activeEditorId, e.target.value)}
-                className="bg-white text-black p-1 rounded border"
+                className="bg-gray-100 text-black p-1 rounded-lg flex-1 sm:flex-none"
               >
                 <option value="vs-dark">Dark</option>
                 <option value="vs-light">Light</option>
@@ -226,15 +234,16 @@ function App() {
             </div>
           </div>
 
+          {/* Editor Section */}
           {editors.map(
             (editor) =>
               editor.id === activeEditorId && (
                 <div key={editor.id} className="relative w-full h-full flex flex-col">
-                  <div className="absolute top-0 left-0 flex items-center justify-between w-full bg-gray-950 text-white p-2 rounded-t-lg">
-                    <span className="text-sm font-bold">{editor.name}</span>
-                    <div className="flex items-center space-x-4 mr-3">
+                  <div className="absolute top-0 left-0 flex sm:flex-row items-start sm:items-center justify-between w-full bg-gray-950 text-white p-2 rounded-t-lg">
+                    <span className="text-xs sm:text-sm font-bold mb-2 sm:mb-0">{editor.name}</span>
+                    <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto justify-end">
                       <button
-                        className="cursor-pointer flex items-center gap-2 px-2 py-0 rounded-lg text-white font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 shadow-lg hover:from-indigo-600 hover:via-purple-700 hover:to-pink-600"
+                        className="cursor-pointer flex items-center gap-1 sm:gap-2 px-2 py-1 rounded-lg text-white text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 shadow-lg hover:from-indigo-600 hover:via-purple-700 hover:to-pink-600"
                         onClick={handleDraw}
                         title="Draw"
                       >
@@ -242,36 +251,36 @@ function App() {
                       </button>
 
                       <button
-                        className='cursor-pointer flex items-center gap-2'
+                        className='cursor-pointer'
                         onClick={handleSnapshot}
                         title="Take Snapshot"
                       >
                         <img
                           src='./camera.png'
                           alt='Copy'
-                          className='w-6 h-6 filter brightness-0 invert'
+                          className='w-4 h-4 sm:w-6 sm:h-6 filter brightness-0 invert'
                         />
                       </button>
+
                       <div className="relative">
                         <button
-                          className='cursor-pointer flex items-center gap-2'
+                          className='cursor-pointer'
                           onClick={handleCopy}
                           title="Copy code"
                         >
                           <img
                             src='./copy.png'
                             alt='Copy'
-                            className='w-5 h-5 filter brightness-0 invert'
+                            className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert'
                           />
                           {copyStatus && (
-                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs bg-gray-900 text-white px-2 py-1 rounded">
+                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap">
                               {copyStatus}
                             </span>
                           )}
                         </button>
                       </div>
 
-                      {/* Download button */}
                       <button
                         className='cursor-pointer'
                         onClick={() => fileDownload(editor.name)}
@@ -280,13 +289,13 @@ function App() {
                         <img
                           src='./direct-download.png'
                           alt='Download'
-                          className='w-5 h-5 filter brightness-0 invert'
+                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert'
                         />
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex-grow mt-9">
+                  <div className="flex-grow mt-10 sm:mt-10 overflow-hidden"> {/* Added overflow-hidden */}
                     <ErrorBoundary>
                       <Editor
                         key={editor.id}
@@ -303,21 +312,23 @@ function App() {
           )}
         </div>
 
-        <div className="hidden lg:flex flex-col lg:w-1/4 w-full bg-white rounded-lg shadow-lg py-4 px-2 flex-grow border">
+        {/* Chat Section */}
+        <div className="hidden relative lg:flex flex-col lg:w-1/4 w-full bg-white rounded-lg shadow-lg py-4 px-2 border overflow-auto"> {/* Modified flex-grow to h-full and added overflow-hidden */}
           <ErrorBoundary>
             <Chat />
           </ErrorBoundary>
         </div>
 
         <button
-          className="lg:hidden bg-white black rounded-lg p-2 w-full mt-4"
+          className="lg:hidden bg-white text-black rounded-lg p-2 w-full mt-4 text-sm font-medium hover:bg-gray-50 transition-colors flex-shrink-0"
           onClick={() => setShowChat(!showChat)}
         >
           {showChat ? "Hide Chat" : "Show Chat"}
         </button>
 
+        {/* Mobile Chat View */}
         {showChat && (
-          <div className="flex lg:hidden flex-col w-full bg-white rounded-lg shadow-lg p-4 flex-grow">
+          <div className="flex lg:hidden flex-col w-full h-[400px] bg-white rounded-lg shadow-lg p-4 overflow-hidden">
             <ErrorBoundary>
               <Chat />
             </ErrorBoundary>

@@ -177,7 +177,7 @@ function Chat() {
     const users = ['Amit Mishra', 'Prasoon Saini', 'Abhinav Singh Pundir'];
 
     return (
-        <div>
+        <div className='relative h-full overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100'>
             {/* Tab Buttons */}
             <div className="flex justify-between text-black font-bold">
                 <button
@@ -197,7 +197,7 @@ function Chat() {
 
             {/* Chat Section */}
             {activeTab === 'chat' && (
-                <div className="flex-1 flex-col-reverse overflow-y-scroll scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 chat_messages py-4 px-1">
+                <div className="flex-1 flex-col-reverse overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1" style={{height: '87.5%'}}>
                     {chat.map((message, index) => (
                         <div
                             key={index}
@@ -299,7 +299,7 @@ function Chat() {
                             </div>
                         </div>
                     ) : (
-                        <p className="text-red-500 text-center flex flex-col chat_messages">Room not created yet.</p>
+                        <p className="text-red-500 text-center flex flex-col ">Room not created yet.</p>
                     )}
                 </div>
             )}
@@ -309,12 +309,12 @@ function Chat() {
                 !isRoomActive && stage === 0 ? (
                     <div className="flex gap-4 justify-between mt-4">
                         <button
-                            className="bg-gray-900 text-white rounded-sm p-2 w-full border"
+                            className="bg-gray-900 text-white rounded-lg p-2 w-full border"
                             onClick={CreateRoom}
                         >
                             Create Room
                         </button>
-                        <button className="bg-white text-black rounded-sm p-2 w-full border" onClick={handleJoinRoom}>
+                        <button className="bg-white text-black rounded-lg p-2 w-full border" onClick={handleJoinRoom}>
                             Join Room
                         </button>
                     </div>
