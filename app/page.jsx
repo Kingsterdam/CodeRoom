@@ -166,8 +166,8 @@ function App() {
   };
 
   return (
-    <div className="flex flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 bg-gradient-to-br from-white via-orange-50 to-white">
-    {/* Changed to h-screen and added overflow-hidden */}
+    <div className="transition-colors duration-500 dark:bg-gradient-to-br dark:from-gray-600 dark:via-gray-800 dark:to-gray-500 flex flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 bg-gradient-to-br from-white via-orange-50 to-white">
+      {/* Changed to h-screen and added overflow-hidden */}
       <header className="w-full px-2 sm:px-4 flex-shrink-0"> {/* Added flex-shrink-0 */}
         <ErrorBoundary>
           <Navbar />
@@ -175,7 +175,7 @@ function App() {
       </header>
 
       <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col "> {/* Added overflow-hidden */}
-        <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white rounded-lg shadow-lg">
+        <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg">
           {/* Tab Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
             {/* Tabs Section */}
@@ -183,7 +183,7 @@ function App() {
               {editors.map((editor) => (
                 <div key={editor.id} className="flex items-center justify-between gap-1">
                   <div
-                    className={`flex items-center space-x-1 text-xs sm:text-sm px-1 py-1 rounded-lg border cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-200 text-black' : 'bg-white'
+                    className={`flex items-center space-x-1 text-xs sm:text-sm px-1 py-1 rounded-lg border cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-200 text-black dark:bg-green-200' : 'bg-white'
                       }`}
                     onClick={() => handleEditorSwitch(editor.id)}
                   >
@@ -206,7 +206,7 @@ function App() {
                 className="p-1 sm:p-2 hover:bg-gray-200 hover:rounded-full"
                 aria-label="Add new editor"
               >
-                <img src='./plus.png' className="w-3 h-3 sm:w-4 sm:h-4" alt="Add tab" />
+                <img src='./plus.png' className="w-3 h-3 sm:w-4 sm:h-4 dark:filter dark:brightness-0 dark:invert dark:hover:invert-0" alt="Add tab" />
               </button>
             </div>
 
@@ -215,7 +215,7 @@ function App() {
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.language}
                 onChange={(e) => handleLanguageChange(activeEditorId, e.target.value)}
-                className="bg-gray-100 text-black p-1 rounded-lg flex-1 sm:flex-none"
+                className="bg-gray-100 dark:bg-green-200 text-black p-1 rounded-lg flex-1 sm:flex-none"
               >
                 <option value="python">Python</option>
                 <option value="cpp">C++</option>
@@ -225,7 +225,7 @@ function App() {
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.theme}
                 onChange={(e) => handleThemeChange(activeEditorId, e.target.value)}
-                className="bg-gray-100 text-black p-1 rounded-lg flex-1 sm:flex-none"
+                className="bg-gray-100 dark:bg-green-200 text-black p-1 rounded-lg flex-1 sm:flex-none"
               >
                 <option value="vs-dark">Dark</option>
                 <option value="vs-light">Light</option>
@@ -239,7 +239,7 @@ function App() {
             (editor) =>
               editor.id === activeEditorId && (
                 <div key={editor.id} className="relative w-full h-full flex flex-col">
-                  <div className="absolute top-0 left-0 flex sm:flex-row items-start sm:items-center justify-between w-full bg-gray-950 text-white p-2 rounded-t-lg">
+                  <div className="absolute top-0 left-0 flex sm:flex-row items-start sm:items-center justify-between w-full bg-gray-950 dark:bg-opacity-40  text-white p-2 rounded-t-lg">
                     <span className="text-xs sm:text-sm font-bold mb-2 sm:mb-0">{editor.name}</span>
                     <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto justify-end">
                       <button
@@ -313,7 +313,7 @@ function App() {
         </div>
 
         {/* Chat Section */}
-        <div className="hidden relative lg:flex flex-col lg:w-1/4 w-full bg-white rounded-lg shadow-lg py-4 px-2 border overflow-auto"> {/* Modified flex-grow to h-full and added overflow-hidden */}
+        <div className="hidden relative lg:flex flex-col lg:w-1/4 w-full bg-white dark:bg-opacity-70 dark:bg-black dark:border-none dark:text-white rounded-lg shadow-lg py-4 px-2 border"> {/* Modified flex-grow to h-full and added overflow-hidden */}
           <ErrorBoundary>
             <Chat />
           </ErrorBoundary>
@@ -328,7 +328,7 @@ function App() {
 
         {/* Mobile Chat View */}
         {showChat && (
-          <div className="flex lg:hidden flex-col w-full h-[400px] bg-white rounded-lg shadow-lg p-4 overflow-hidden">
+          <div className="flex lg:hidden flex-col w-full h-[600px] sm:h-[400px] bg-white sm:overflow-auto dark:bg-opacity-60 dark:bg-black rounded-lg shadow-lg p-4">
             <ErrorBoundary>
               <Chat />
             </ErrorBoundary>

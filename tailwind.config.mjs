@@ -5,24 +5,26 @@ export default {
     "./components/**/*.{js,ts,jsx,tsx,mdx}",
     "./app/**/*.{js,ts,jsx,tsx,mdx}",
   ],
+  mode: 'jit',
   darkMode: 'class',
   theme: {
     extend: {
       colors: {
-        background: "var(--background)",
-        foreground: "var(--foreground)",
+        darkBackground: '#1a1a1a',
+        lightBackground: '#ffffff',
+        darkText: '#ffffff',
+        lightText: '#000000',
       },
       animation: {
         loading: 'loading 2s infinite',
+        'dark-mode-toggle': 'darkModeToggle 0.5s ease-in-out',
       },
-      transform: {
-        'rotate-y-360': 'rotateY(360deg)',
-        'rotate-y-0': 'rotateY(0deg)',
-      },
-      loading: {
-        '0%': { width: '0%', backgroundColor: '#4285f4' },
-        '50%': { width: '50%', backgroundColor: '#34a853' },
-        '100%': { width: '100%', backgroundColor: '#fbbc05' },
+      keyframes: {
+        darkModeToggle: {
+          '0%': { backgroundColor: '#ffffff', color: '#000000' },
+          '50%': { backgroundColor: '#888888', color: '#444444' },
+          '100%': { backgroundColor: '#1a1a1a', color: '#ffffff' },
+        },
       },
     },
   },

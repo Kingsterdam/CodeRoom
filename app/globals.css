@@ -1,7 +1,26 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
-@import url('https://fonts.googleapis.com/css?family=Muli&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Roboto:wght@400;500;700&display=swap');
+
+/* globals.css */
+
+@layer base {
+  html {
+    background-color: var(--lightBackground); /* Default Light Background */
+    color: var(--lightText); /* Default Light Text */
+  }
+
+  /* Dark mode styles */
+  html.dark {
+    background-color: var(--darkBackground); /* Dark Background */
+    color: var(--darkText); /* Dark Text */
+  }
+}
+
+body {
+  font-family:'Trebuchet MS', 'Lucida Sans Unicode', 'Lucida Grande', 'Lucida Sans', Arial, sans-serif;
+}
 /* Default style for larger screens */
 /* Default style for larger screens */
 .chat_messages {
@@ -11,17 +30,20 @@
 /* Media query for small screens (mobile) */
 @media (max-width: 768px) {
   .chat_messages {
-    background-color: white; 
-    height: 30vh;
+    overflow-y: auto;
+    height: 57vh;
   }
 }
 
-@media (max-width: 768px) {
+@media (max-width: 800px) {
   .chat_messages {
-    background-color: white; 
-    height: 30vh; 
+    overflow-y: auto;
+    height: 68vh;
   }
 }
+
+
+
 
 .name_size{
   font-size: smaller;

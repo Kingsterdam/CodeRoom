@@ -39,6 +39,7 @@ const Editor = forwardRef(({
   const [activeTab, setActiveTab] = useState('input');
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
+  const [inputValue, setInputValue] = useState(''); // State to manage input
 
   // React to language changes and update the code sample
   useEffect(() => {
@@ -60,6 +61,11 @@ const Editor = forwardRef(({
       }
     });
   }, [language]);
+
+    // Function to handle changes in the textarea
+    const handleInputChange = (e) => {
+      setInputValue(e.target.value);
+    };
 
   const takeSnapshot = async () => {
     if (editorRef.current) {
@@ -104,7 +110,8 @@ const Editor = forwardRef(({
     setActiveTab('output');
 
     try {
-      const result = await executeCode(language, code); // Call the API
+      console.log("same file input")
+      const result = await executeCode(language, code, inputValue); // Call the API
 
       // Determine status message based on error type or success
       let statusMessage = "";
@@ -159,21 +166,21 @@ const Editor = forwardRef(({
       {/* Changes code */}
       {showConsole && (
         <div
-          className="absolute bottom-0 left-0 w-full bg-gray-200 p-0 rounded-t-sm transition-all duration-300 ease-in-out"
+          className="absolute bottom-0 left-0 w-full bg-gray-200 dark:bg-gray-900  p-0 rounded-t-sm transition-all duration-300 ease-in-out"
           style={{ height: showConsole ? '40%' : '0', overflow: 'hidden' }}
         >
-          <div className="w-full h-full border rounded flex flex-col">
+          <div className="w-full h-full rounded flex flex-col">
             {/* Tabs */}
-            <div className="flex h-1/6 bg-slate-100">
+            <div className="flex h-1/6 bg-slate-100 dark:bg-black dark:bg-opacity-60 dark:text-white">
               <button
-                className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900' : ''
+                className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''
                   }`}
                 onClick={() => setActiveTab('input')}
               >
                 Input
               </button>
               <button
-                className={`flex-1 p-1 font-bold ${activeTab === 'output' ? 'border-b border-b-gray-900' : ''
+                className={`flex-1 p-1 font-bold ${activeTab === 'output' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''
                   }`}
                 onClick={() => setActiveTab('output')}
               >
@@ -182,18 +189,20 @@ const Editor = forwardRef(({
             </div>
 
             {/* Content Area */}
-            <div className="w-full h-5/6 border-t overflow-hidden">
+            <div className="w-full h-5/6  overflow-hidden">
               {activeTab === 'input' && (
                 <textarea
-                  className="w-full h-full p-2 border-r border-l border-b rounded"
+                  className="w-full h-full p-2 rounded bg-white dark:bg-black dark:bg-opacity-40 dark:text-white"
                   placeholder="Enter your input here..."
+                  value={inputValue} // Bind the state to the textarea
+                  onChange={handleInputChange}
                 ></textarea>
               )}
               {activeTab === 'output' && (
-                <div className="w-full h-full border-r border-l border-b rounded bg-white overflow-auto">
+                <div className="w-full h-full rounded bg-white dark:bg-black dark:bg-opacity-40 dark:text-white overflow-auto">
                   <div className="p-2">
                     <div
-                      className={`text-xl  rounded relative bold font-bold ${output.status === "Success!" ? "text-green-700" : "text-red-700"
+                      className={`text-xl  rounded relative bold font-bold ${output.status === "Success!" ? "text-green-700 dark:text-green-500" : "text-red-700"
                         }`}
                       role="alert"
                     >
@@ -212,7 +221,7 @@ const Editor = forwardRef(({
       <div className='flex items-center justify-between gap-2 mb-2'>
         <button
           onClick={() => setShowConsole(!showConsole)}
-          className="mt-1 bg-gray-900 text-white rounded-lg py-2 px-3 w-full lg:w-auto border"
+          className="mt-1 bg-gray-900 dark:bg-green-300 dark:text-black text-white rounded-lg py-2 px-3 w-full lg:w-auto border"
         >
           {showConsole ? "Hide Console" : "Console"}
         </button>
