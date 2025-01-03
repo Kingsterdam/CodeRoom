@@ -5,7 +5,7 @@ import html2canvas from "html2canvas";
 import DrawingLayer from './drawingLayer';
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
 import { useRoomContext } from "@/context/RoomContext";
-import { connectSocket, getSocket, offLanguageUpdate, offMessage, onLanguageUpdate, onMessage, sendMessage } from "@/utils/socketCon";
+import { connectSocket, offMessage, onMessage, sendMessage } from "@/utils/socketCon";
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
 console.log("Hello, World!");`,
@@ -30,8 +30,7 @@ const Editor = forwardRef(({
   language = "javascript",
   theme = "vs-dark",
   initialContent = "",
-  onContentChange = () => { },
-  onLanguageChange = () => { }
+  onContentChange = () => { } // Add this prop with default empty function
 }, ref) => {
   const [code, setCode] = useState(initialContent || SAMPLE_CODE[language] || SAMPLE_CODE.default);
   const [showOutput, setShowOutput] = useState(false);
@@ -44,36 +43,10 @@ const Editor = forwardRef(({
   // React to language changes and update the code sample
 
   useEffect(() => {
-    console.log("EDITOR: Setting up language update listener");
-    connectSocket()
-    const handleLanguageUpdate = (data) => {
-      console.log("EDITOR: Received language update in handler:", data);
-      if (data.message.language && data.message.language !== language) {
-        console.log("EDITOR: Updating language to:", data.message.language);
-        onLanguageChange(data.message.language);
-
-        // Update code sample for new language
-        const sampleCode = SAMPLE_CODE[data.message.language] || SAMPLE_CODE.default;
-        setCode(sampleCode);
-        onContentChange(sampleCode);
-      }
-    };
-
-    onLanguageUpdate(handleLanguageUpdate);
-
-    return () => {
-      // console.log("EDITOR: Cleaning up language update listener");
-      offLanguageUpdate();
-    };
-  }, [language, onLanguageChange]);
-
-  useEffect(() => {
-    // console.log("EDITOR: Language changed to:", language);
-    // Update code for the user who changed the language
     const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
-    setCode(sampleCode);
-    onContentChange(sampleCode);
-  }, [language]);
+    setCode(sampleCode); // Update code based on language
+    onContentChange(sampleCode); // Notify parent about the change
+  }, [language]); // Triggered when language or initialContent changes
 
 
   // Load additional Monaco language support dynamically if necessary
@@ -94,7 +67,9 @@ const Editor = forwardRef(({
     connectSocket();
     // Listen for incoming messages
     onMessage((data) => {
+      console.log(data)
       if (data.type === "code") {
+        console.log("code", data)
         setCode(data.text)
       }
     });

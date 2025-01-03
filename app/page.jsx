@@ -8,8 +8,6 @@ import Editor from '../components/Editor';
 import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
-import { connectSocket, offEditorUpdate, onEditorUpdate, sendEditorUpdate, sendLanguageUpdate, sendMessage } from '@/utils/socketCon';
-import { useRoomContext } from '@/context/RoomContext';
 
 function App() {
   const [editors, setEditors] = useState([{
@@ -25,7 +23,7 @@ function App() {
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [idCounter, setIdCounter] = useState(2);
-  const room = useRoomContext()
+
   useEffect(() => {
     console.log('Editors state updated:', editors);
   }, [editors]);
@@ -41,16 +39,6 @@ function App() {
     setEditors([...editors, newEditor]);
     setActiveEditorId(idCounter);
     setIdCounter((prev) => prev + 1);
-
-    // Send editor update to other users
-    const newMessage = {
-      type: "editorUpdate",
-      instruction: "add",
-      id: idCounter
-    };
-
-    console.log("PAGE: Sending editor add message:", newMessage);
-    sendEditorUpdate(room, newMessage);
   };
 
   const handleDraw = () => {
@@ -145,11 +133,6 @@ function App() {
   };
 
   const handleLanguageChange = (id, language) => {
-    console.log("PAGE: Language change initiated");
-    console.log("PAGE: Editor ID:", id);
-    console.log("PAGE: New language:", language);
-    console.log("PAGE: Room:", room);
-
     const languageExtensions = {
       python: "py",
       javascript: "js",
@@ -159,7 +142,6 @@ function App() {
       scala: "scala",
       sql: "sql",
     };
-
     const fileExtension = languageExtensions[language] || "txt";
     setEditors(prevEditors =>
       prevEditors.map(editor =>
@@ -168,16 +150,6 @@ function App() {
           : editor
       )
     );
-
-    // Send language update to other users
-    const newMessage = {
-      type: "languageUpdate",
-      language: language,
-      time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-    };
-
-    console.log("PAGE: Sending language update message:", newMessage);
-    sendLanguageUpdate(room, newMessage);
   };
 
   const handleThemeChange = (id, theme) => {
@@ -189,33 +161,6 @@ function App() {
       )
     );
   };
-
-  // useEffect(() => {
-  //   console.log("Setting up editor update listener");
-
-  //   const handleEditorUpdate = (data) => {
-  //     console.log("Received editor update:", data);
-  //     if (data.instruction === 'sum') {
-  //       const newEditor = {
-  //         id: idCounter,
-  //         language: 'python',
-  //         name: `file${idCounter}.py`,
-  //         theme: 'vs-dark',
-  //         content: '',
-  //       };
-  //       setEditors([...editors, newEditor]);
-  //       setActiveEditorId(idCounter);
-  //       setIdCounter((prev) => prev + 1);
-  //     }
-  //   };
-
-  //   onEditorUpdate(handleEditorUpdate);
-
-  //   return () => {
-  //     console.log("Cleaning up editor update listener");
-  //     offEditorUpdate();
-  //   };
-  // }, []);  // Empty dependency array since we want this to run once on mount
 
 
   return (
@@ -356,7 +301,6 @@ function App() {
                         theme={editor.theme}
                         initialContent={editor.content}
                         onContentChange={(content) => handleContentChange(editor.id, content)}
-                        onLanguageChange={(newLanguage) => handleLanguageChange(editor.id, newLanguage)}
                         ref={editorRef}
                       />
                     </ErrorBoundary>

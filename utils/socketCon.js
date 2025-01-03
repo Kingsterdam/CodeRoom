@@ -37,70 +37,35 @@ export const getSocket = () => {
     return socket;
 };
 
-// In socketCon.js
-export const sendLanguageUpdate = (room, message) => {
+/**
+ * Emits a language change event to the server.
+ * @param {string} language - The new language code (e.g., 'en', 'fr').
+ */
+export const changeLanguage = (room, language) => {
     const socket = getSocket();
-    if (socket && room && message) {
-        console.log("SOCKET_CON: Sending language update");
-        console.log("SOCKET_CON: Room:", room);
-        console.log("SOCKET_CON: Message:", message);
-
-        socket.emit("languageUpdate", { room, message });
+    if (language) {
+        socket.emit("languageChange", { room, language });
+        console.log(`Language change event emitted: ${language}`);
     } else {
-        console.error("Socket, room, and language are required to send language updates.");
+        console.error("Language and room are required to change language.");
     }
 };
 
-export const onLanguageUpdate = (callback) => {
-    console.log("ppppppppp")
+/**
+ * Listens for languageChanged events from the server.
+ * @param {function} callback - A function to handle language change notifications.
+ */
+export const onLanguageChange = (callback) => {
     const socket = getSocket();
-    if (socket) {
-        console.log("SOCKET_CON: Setting up language update listener");
-        socket.on("languageUpdate", (data) => {
-            console.log("SOCKET_CON: Received language update:", data);
-            callback(data);
-        });
-    }
+    socket.on("languageChange", callback);
 };
 
-export const offLanguageUpdate = () => {
+/**
+ * Stops listening for languageChanged events.
+ */
+export const offLanguageChange = () => {
     const socket = getSocket();
-    if (socket) {
-        // console.log("SOCKET_CON: Removing language update listener");
-        socket.off("languageUpdate");
-    }
-};
-
-export const sendEditorUpdate = (room, message) => {
-    const socket = getSocket();
-    if (socket && room && message) {
-        console.log("SOCKET_CON: Sending editor update");
-        console.log("SOCKET_CON: Room:", room);
-        console.log("SOCKET_CON: Message:", message);
-
-        socket.emit("editorUpdate", { room, message });
-    } else {
-        console.error("Socket, room, and language are required to send language updates.");
-    }
-};
-
-export const onEditorUpdate = (callback) => {
-    const socket = getSocket();
-    if (socket) {
-        console.log("SOCKET_CON: Setting up EDITOR update listener");
-        socket.on("editorUpdate", (data) => {
-            console.log("SOCKET_CON: Received Editor update:", data);
-            callback(data);
-        });
-    }
-};
-
-export const offEditorUpdate = () => {
-    const socket = getSocket();
-    if (socket) {
-        console.log("SOCKET_CON: Removing editor update listener");
-        socket.off("editorUpdate");
-    }
+    socket.off("languageChange");
 };
 
 
@@ -130,6 +95,14 @@ export const leaveRoom = (room, message) => {
     } else {
         console.error("Room name is required to leave a room.");
     }
+};
+
+/**
+ * Retrieves all available rooms.
+ */
+export const getAllRooms = () => {
+    const socket = getSocket();
+    socket.emit("allRooms");
 };
 
 /**
@@ -170,7 +143,6 @@ export const onMessage = (callback) => {
     const socket = getSocket();
     socket.on("message", callback);
 };
-
 
 /**
  * Listens for incoming code updates from the server.
