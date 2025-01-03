@@ -4,6 +4,8 @@ import { executeCode } from "../utils/codeExecution";
 import html2canvas from "html2canvas";
 import DrawingLayer from './drawingLayer';
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
+import { saveCode, fetchCode } from '../utils/codeSaving'
+import { useRoomContext } from "../context/RoomContext";
 
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
@@ -26,6 +28,7 @@ int main() {
 };
 
 const Editor = forwardRef(({
+  editorId=1,
   language = "javascript",
   theme = "vs-dark",
   initialContent = "",
@@ -40,14 +43,51 @@ const Editor = forwardRef(({
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [inputValue, setInputValue] = useState(''); // State to manage input
+  const {room, setRoom } = useRoomContext();
+  const [saving, setSaving] = useState(false);
 
-  // React to language changes and update the code sample
-  useEffect(() => {
-    const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
-    setCode(sampleCode); // Update code based on language
-    onContentChange(sampleCode); // Notify parent about the change
-  }, [language]); // Triggered when language or initialContent changes
+//Auto Fetching of the code
+// Fetching and initializing code based on Redis data or language change
+useEffect(() => {
+  const initializeCode = async () => {
+    // Fetch saved code from Redis
+    console.log('room' + room)
+    const savedCode = await fetchCode(room);
+    if (savedCode) {
+      setCode(savedCode); // Use saved code if available
+      onContentChange(savedCode); // Notify parent about the change
+    } else {
+      // No saved code found, initialize with language-specific sample code
+      const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
+      setCode(sampleCode);
+      onContentChange(sampleCode);
+    }
+  };
 
+  initializeCode();
+}, [room, language]); // Triggered on room or language change
+
+
+useEffect(() => {
+  let timeout;
+
+  const saveCodeOnDelay = async () => {
+    if (code && !saving) {
+      setSaving(true);
+      await saveCode(room, code);  // Assuming this is an async function that handles the save operation
+      setSaving(false);
+    }
+  };
+
+  // Set timeout only when the code changes, and clear the previous timeout
+  timeout = setTimeout(saveCodeOnDelay, 5000); // Try saving after 2000ms of inactivity
+
+  return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
+
+}, [code, room, saving]);  // Triggered on code, room, or saving state change
+
+
+  
 
   // Load additional Monaco language support dynamically if necessary
   useEffect(() => {
@@ -225,6 +265,9 @@ const Editor = forwardRef(({
         >
           {showConsole ? "Hide Console" : "Console"}
         </button>
+        <div className="text-gray-400">
+          {saving ? 'Auto-saving...' : 'All changes saved'}
+        </div>
         <button
           onClick={handleRunCode}
           className="mt-1 flex items-center justify-center bg-white text-black rounded-lg px-3 py-2 w-full lg:w-auto border"

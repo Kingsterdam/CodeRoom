@@ -299,6 +299,7 @@ function App() {
                     <ErrorBoundary>
                       <Editor
                         key={editor.id}
+                        editorId={editor.id}
                         language={editor.language}
                         theme={editor.theme}
                         initialContent={editor.content}
