@@ -1,13 +1,15 @@
 // App.jsx
 'use client';
 
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import Chat from '../components/chat';
 import Navbar from '../components/navbar';
 import Editor from '../components/Editor';
 import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
+import { connectSocket, sendLanguageUpdate } from "@/utils/socketCon";
+import { useRoomContext } from "../context/RoomContext";
 
 
 function App() {
@@ -24,6 +26,11 @@ function App() {
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [idCounter, setIdCounter] = useState(2);
+  const { room, setRoom } = useRoomContext();
+  
+  useEffect(() => {
+    connectSocket(); // Initialize socket when App mounts
+  }, []);
 
 
   useEffect(() => {
@@ -136,25 +143,31 @@ function App() {
 
   const handleLanguageChange = (id, language) => {
     const languageExtensions = {
-      python: "py",
-      javascript: "js",
-      java: "java",
-      cpp: "cpp",
-      ruby: "rb",
-      scala: "scala",
-      sql: "sql",
+        python: "py",
+        javascript: "js",
+        java: "java",
+        cpp: "cpp",
+        ruby: "rb",
+        scala: "scala",
+        sql: "sql",
     };
     const fileExtension = languageExtensions[language] || "txt";
 
     setEditors(prevEditors =>
-      prevEditors.map(editor =>
-        editor.id === id
-          ? { ...editor, language, name: `file${id}.${fileExtension}` }
-          : editor
-      )
+        prevEditors.map(editor =>
+            editor.id === id
+                ? { ...editor, language, name: `file${id}.${fileExtension}` }
+                : editor
+        )
     );
-  };
-
+    // Add this section to broadcast language change
+    if (room) {
+        sendLanguageUpdate(room, {
+            editorId: id,
+            language: language
+        });
+    }
+};
   const handleThemeChange = (id, theme) => {
     setEditors(prevEditors =>
       prevEditors.map(editor =>

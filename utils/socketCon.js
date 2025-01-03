@@ -103,6 +103,28 @@ export const sendCodeUpdate = (room, code) => {
     }
 };
 
+// Add these new functions to your existing socketCon.js
+export const sendLanguageUpdate = (room, languageData) => {
+    const socket = getSocket();
+    if (room && languageData) {
+        socket.emit("languageUpdate", { room, ...languageData });
+        console.log(`Language update sent to room ${room}:`, languageData);
+    } else {
+        console.error("Room and language data are required to send updates.");
+    }
+};
+
+export const onLanguageUpdate = (callback) => {
+    const socket = getSocket();
+    socket.on("languageUpdate", callback);
+};
+
+export const offLanguageUpdate = () => {
+    const socket = getSocket();
+    socket.off("languageUpdate");
+};
+
+
 /**
  * Listens for incoming messages from the server.
  * @param {function} callback - A function to handle incoming messages.

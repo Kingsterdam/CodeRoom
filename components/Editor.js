@@ -6,6 +6,8 @@ import DrawingLayer from './drawingLayer';
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
 import { saveCode, fetchCode } from '../utils/codeSaving'
 import { useRoomContext } from "../context/RoomContext";
+import { onLanguageUpdate, offLanguageUpdate } from "@/utils/socketCon";
+import  { connectSocket } from "@/utils/socketCon";
 
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
@@ -28,7 +30,7 @@ int main() {
 };
 
 const Editor = forwardRef(({
-  editorId=1,
+  editorId = 1,
   language = "javascript",
   theme = "vs-dark",
   initialContent = "",
@@ -43,51 +45,70 @@ const Editor = forwardRef(({
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [inputValue, setInputValue] = useState(''); // State to manage input
-  const {room, setRoom } = useRoomContext();
+  const { room, setRoom } = useRoomContext();
   const [saving, setSaving] = useState(false);
 
-//Auto Fetching of the code
-// Fetching and initializing code based on Redis data or language change
-useEffect(() => {
-  const initializeCode = async () => {
-    // Fetch saved code from Redis
-    console.log('room' + room)
-    const savedCode = await fetchCode(room);
-    if (savedCode) {
-      setCode(savedCode); // Use saved code if available
-      onContentChange(savedCode); // Notify parent about the change
-    } else {
-      // No saved code found, initialize with language-specific sample code
-      const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
-      setCode(sampleCode);
-      onContentChange(sampleCode);
-    }
-  };
+  useEffect(() => {
+    // Ensure socket is connected
+    connectSocket();
+    
+    const handleLanguageUpdate = (data) => {
+        if (data.editorId === editorId) {
+            const sampleCode = SAMPLE_CODE[data.language] || SAMPLE_CODE.default;
+            setCode(sampleCode);
+            onContentChange(sampleCode);
+        }
+    };
 
-  initializeCode();
-}, [room, language]); // Triggered on room or language change
+    onLanguageUpdate(handleLanguageUpdate);
+
+    return () => {
+        offLanguageUpdate();
+    };
+}, [editorId, onContentChange]);
+
+  //Auto Fetching of the code
+  // Fetching and initializing code based on Redis data or language change
+  useEffect(() => {
+    const initializeCode = async () => {
+      // Fetch saved code from Redis
+      console.log('room' + room + editorId)
+      const savedCode = await fetchCode(room, editorId, language);
+      if (savedCode) {
+        setCode(savedCode); // Use saved code if available
+        onContentChange(savedCode); // Notify parent about the change
+      } else {
+        // No saved code found, initialize with language-specific sample code
+        const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
+        setCode(sampleCode);
+        onContentChange(sampleCode);
+      }
+    };
+
+    initializeCode();
+  }, [room, editorId, language]); // Triggered on room or language change
 
 
-useEffect(() => {
-  let timeout;
+  useEffect(() => {
+    let timeout;
 
-  const saveCodeOnDelay = async () => {
-    if (code && !saving) {
-      setSaving(true);
-      await saveCode(room, code);  // Assuming this is an async function that handles the save operation
-      setSaving(false);
-    }
-  };
+    const saveCodeOnDelay = async () => {
+      if (code && !saving) {
+        setSaving(true);
+        await saveCode(room, editorId, language, code);  // Assuming this is an async function that handles the save operation
+        setSaving(false);
+      }
+    };
 
-  // Set timeout only when the code changes, and clear the previous timeout
-  timeout = setTimeout(saveCodeOnDelay, 5000); // Try saving after 2000ms of inactivity
+    // Set timeout only when the code changes, and clear the previous timeout
+    timeout = setTimeout(saveCodeOnDelay, 5000); // Try saving after 2000ms of inactivity
 
-  return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
+    return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
 
-}, [code, room, saving]);  // Triggered on code, room, or saving state change
+  }, [code, room, editorId, saving]);  // Triggered on code, room, or saving state change
 
 
-  
+
 
   // Load additional Monaco language support dynamically if necessary
   useEffect(() => {
@@ -102,10 +123,10 @@ useEffect(() => {
     });
   }, [language]);
 
-    // Function to handle changes in the textarea
-    const handleInputChange = (e) => {
-      setInputValue(e.target.value);
-    };
+  // Function to handle changes in the textarea
+  const handleInputChange = (e) => {
+    setInputValue(e.target.value);
+  };
 
   const takeSnapshot = async () => {
     if (editorRef.current) {
@@ -178,7 +199,7 @@ useEffect(() => {
 
 
   return (
-    <div className="relative w-full" ref={editorRef} style={{height: '91%' }}> {/* Adjust height */}
+    <div className="relative w-full" ref={editorRef} style={{ height: '91%' }}> {/* Adjust height */}
       <MonacoEditor
         height="100%"
         language={language}
