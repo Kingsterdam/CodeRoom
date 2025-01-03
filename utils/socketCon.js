@@ -37,36 +37,64 @@ export const getSocket = () => {
     return socket;
 };
 
-/**
- * Emits a language change event to the server.
- * @param {string} language - The new language code (e.g., 'en', 'fr').
- */
-export const changeLanguage = (room, language) => {
+// In socketCon.js
+export const sendLanguageUpdate = (room, message) => {
     const socket = getSocket();
-    if (language) {
-        socket.emit("languageChange", { room, language });
-        console.log(`Language change event emitted: ${language}`);
+    if (socket && room && message) {
+        socket.emit("languageUpdate", { room, message });
     } else {
-        console.error("Language and room are required to change language.");
+        console.error("Socket, room, and language are required to send language updates.");
     }
 };
 
-/**
- * Listens for languageChanged events from the server.
- * @param {function} callback - A function to handle language change notifications.
- */
-export const onLanguageChange = (callback) => {
+export const onLanguageUpdate = (callback) => {
     const socket = getSocket();
-    socket.on("languageChange", callback);
+    if (socket) {
+        socket.on("languageUpdate", (data) => {
+            callback(data);
+        });
+    }
 };
 
-/**
- * Stops listening for languageChanged events.
- */
-export const offLanguageChange = () => {
+export const offLanguageUpdate = () => {
     const socket = getSocket();
-    socket.off("languageChange");
+    if (socket) {
+        socket.off("languageUpdate");
+    }
 };
+
+export const sendEditorUpdate = (room, message) => {
+    const socket = getSocket();
+    if (socket && room && message) {
+        console.log("SOCKET_CON: Sending editor update");
+        console.log("SOCKET_CON: Room:", room);
+        console.log("SOCKET_CON: Message:", message);
+
+        socket.emit("editorUpdate", { room, message });
+    } else {
+        console.error("Socket, room, and language are required to send language updates.");
+    }
+};
+
+export const onEditorUpdate = (callback) => {
+    const socket = getSocket();
+    if (socket) {
+        console.log("SOCKET_CON: Setting up EDITOR update listener");
+        socket.on("editorUpdate", (data) => {
+            console.log("SOCKET_CON: Received Editor update:", data);
+            callback(data);
+        });
+    }
+};
+
+export const offEditorUpdate = () => {
+    const socket = getSocket();
+    if (socket) {
+        console.log("SOCKET_CON: Removing editor update listener");
+        socket.off("editorUpdate");
+    }
+};
+
 
 
 /**

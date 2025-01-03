@@ -8,6 +8,8 @@ import Editor from '../components/Editor';
 import './globals.css';
 import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
+import { offEditorUpdate, onEditorUpdate, sendEditorUpdate, sendLanguageUpdate } from '@/utils/socketCon';
+import { useRoomContext } from '@/context/RoomContext';
 
 function App() {
   const [editors, setEditors] = useState([{
@@ -23,10 +25,10 @@ function App() {
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [idCounter, setIdCounter] = useState(2);
-
-  useEffect(() => {
-    console.log('Editors state updated:', editors);
-  }, [editors]);
+  const room = useRoomContext()
+  // useEffect(() => {
+  //   console.log('Editors state updated:', editors);
+  // }, [editors]);
 
   const addEditor = () => {
     const newEditor = {
@@ -36,10 +38,23 @@ function App() {
       theme: 'vs-dark',
       content: '',
     };
-    setEditors([...editors, newEditor]);
+    setEditors((prevEditors) => [...prevEditors, newEditor]);
+    console.log("All editors ", editors);
     setActiveEditorId(idCounter);
     setIdCounter((prev) => prev + 1);
+
+    // Send editor update to other users
+    const newMessage = {
+      type: "editorUpdate",
+      instruction: "add",
+      id: idCounter,
+      source: "local", // Indicate this update is from the local user
+    };
+
+    console.log("PAGE: Sending editor add message:", newMessage);
+    sendEditorUpdate(room, newMessage);
   };
+
 
   const handleDraw = () => {
     setIsDrawModeEnabled(prevState => !prevState);
@@ -133,6 +148,7 @@ function App() {
   };
 
   const handleLanguageChange = (id, language) => {
+    console.log("handleLanguageChange called", id, language)
     const languageExtensions = {
       python: "py",
       javascript: "js",
@@ -142,6 +158,7 @@ function App() {
       scala: "scala",
       sql: "sql",
     };
+
     const fileExtension = languageExtensions[language] || "txt";
     setEditors(prevEditors =>
       prevEditors.map(editor =>
@@ -150,6 +167,14 @@ function App() {
           : editor
       )
     );
+
+    // Send language update to other users
+    const newMessage = {
+      type: "languageUpdate",
+      language: language,
+      editorId: id,
+    };
+    sendLanguageUpdate(room, newMessage);
   };
 
   const handleThemeChange = (id, theme) => {
@@ -161,6 +186,42 @@ function App() {
       )
     );
   };
+
+  useEffect(() => {
+    console.log("Setting up editor update listener");
+
+    const handleEditorUpdate = (data) => {
+      console.log("Received editor update:", data);
+
+      // Ignore updates that originated locally
+      if (data.source === "local") return;
+
+      if (data.instruction === 'add') {
+        console.log("Adding editor::::");
+        const newEditor = {
+          id: data.id,
+          language: 'python',
+          name: `file${data.id}.py`,
+          theme: 'vs-dark',
+          content: '',
+        };
+        setEditors((prevEditors) => [...prevEditors, newEditor]);
+        console.log("All editors ", editors);
+        setActiveEditorId(data.id);
+
+        // Ensure the counter stays correct
+        setIdCounter((prevCounter) => Math.max(prevCounter, data.id + 1));
+      }
+    };
+
+    onEditorUpdate(handleEditorUpdate);
+
+    return () => {
+      console.log("Cleaning up editor update listener");
+      offEditorUpdate();
+    };
+  }, []);
+  // Empty dependency array since we want this to run once on mount
 
 
   return (
@@ -297,10 +358,14 @@ function App() {
                     <ErrorBoundary>
                       <Editor
                         key={editor.id}
+                        editors={editors}
+                        setEditors={setEditors}
+                        editorId={editor.id}
                         language={editor.language}
                         theme={editor.theme}
                         initialContent={editor.content}
                         onContentChange={(content) => handleContentChange(editor.id, content)}
+                        onLanguageChange={(value) => handleLanguageChange(value.editorId, value.language)}
                         ref={editorRef}
                       />
                     </ErrorBoundary>
