@@ -1,16 +1,16 @@
-"use client";
+'use client';
 
-import { useTheme } from "../context/ThemeContext";
+import { useTheme } from "../context/ThemeContext"; // Import your theme context
 
 const ThemeToggle = () => {
-  const { theme, toggleTheme } = useTheme(); // Use context to get the theme and toggle function
+  const { theme, toggleTheme } = useTheme(); // Get the theme and toggle function from the context
 
   return (
     <button
-      onClick={toggleTheme}
-      className="py-1 px-2 rounded-lg bg-gray-200 dark:bg-gray-800 text-gray-900 dark:text-gray-100 font-semibold"
+      onClick={toggleTheme} // Call toggleTheme to change the theme
+      className="py-1 px-2 rounded-lg bg-gray-20 dark:text-black dark:bg-green-300 text-gray-90 font-semibold"
     >
-      {theme === "light" ? "🌙 Dark" : "☀️ Light"}
+      {theme === "light" ? "🌙 Dark" : "☀️ Light"} {/* Display icons based on current theme */}
     </button>
   );
 };

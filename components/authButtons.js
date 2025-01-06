@@ -23,7 +23,7 @@ const AuthButtons = () => {
                     const { displayName, emails, photos } = userData;
                     const email = emails?.[0]?.value || '';
                     const picture = photos?.[0]?.value || './man.png';
-
+                    
                     localStorage.setItem('userName', displayName);
                     localStorage.setItem('userEmail', email);
                     if (picture) {
@@ -148,7 +148,7 @@ const AuthButtons = () => {
                 <div className="flex items-center space-x-1">
                     <button
                         onClick={handleLogin} // Assuming you have a handleLogin function for logging in
-                        className="px-4 py-1 bg-gray-900 text-white rounded-lg font-semibold"
+                        className="px-4 py-1 bg-gray-900 text-white dark:bg-transparent  dark:text-white rounded-lg font-semibold"
                     >
                         Login
                     </button>
