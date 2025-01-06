@@ -7,7 +7,6 @@ function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext();
     const [muteStatus, setMuteStatus] = useState({});
-    // const [room, setRoom] = useState("");
     const [isCreateRoomClicked, setIsCreateRoomClicked] = useState(false);
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
@@ -40,6 +39,36 @@ function Chat() {
             offMessage();
         };
     }, []);
+
+    useEffect(() => {
+        connectSocket();
+        
+        onMessage((data) => {
+            setChat(prevChat => {
+                const isDuplicate = prevChat.some(msg => 
+                    msg.type === data.type && 
+                    msg.text === data.text && 
+                    msg.time === data.time
+                );
+                return isDuplicate ? prevChat : [...prevChat, data];
+            });
+        });
+        const roomId = room
+        if (room && !isRoomActive) {
+            setRoom(roomId);
+            joinRoom(roomId, {
+                type: "Join",
+                name: "You",
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            }, true); // Added isInitialJoin flag for URL joins
+            setRoomCreated(true);
+            setStage(2);
+        }
+    
+        return () => {
+            offMessage();
+        };
+    }, []); 
 
     useEffect(() => {
         let timerInterval;
@@ -75,26 +104,22 @@ function Chat() {
 
     const CreateRoom = () => {
         const roomId = generateRoomId();
-        setRoom(roomId);  // This sets the room state
-        const newMsg = {
+        setRoom(roomId);
+        joinRoom(roomId, {
             type: "Join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        joinRoom(roomId, newMsg)
+        }, true); // Added isInitialJoin flag
         setRoomCreated(true);
         setIsCreateRoomClicked(true);
         setIsJoinRoomClicked(false);
-        setRoomCreated(true)
-
-        const currentUrl = window.location.href; // Get the current URL
-        const baseUrl = currentUrl.split('?')[0]; // Remove any existing query params
-        console.log("base url", baseUrl)
-        const newUrl = `${baseUrl}?roomId=${roomId}`; // Append the roomId as a query parameter
-        console.log("new url", newUrl)
-        // Update the browser's URL without reloading the page
+    
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = `${baseUrl}?roomId=${roomId}`;
         window.history.pushState({ path: newUrl }, '', newUrl);
     };
+    
 
     const handleJoinRoom = () => {
         setIsJoinRoomClicked(true);
@@ -104,23 +129,20 @@ function Chat() {
         console.log("this is the stage", stage)
     };
     const handlingJoinRoom = () => {
-        const newMsg = {
+        joinRoom(room, {
             type: "Join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        joinRoom(room, newMsg);
-        setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
-        setRoomCreated(true)
-        setStage(2)
-
+        }, true); // Added isInitialJoin flag
+        setIsJoinRoomClicked(false);
+        setRoomCreated(true);
+        setStage(2);
+    
         const currentUrl = window.location.href;
         const baseUrl = currentUrl.split('?')[0];
-        console.log("base url", baseUrl)
         const newUrl = `${baseUrl}?roomId=${room}`;
         window.history.pushState({ path: newUrl }, '', newUrl);
     };
-
     const handleSendMessage = () => {
         if (message.trim()) {
             const newMessage = {
@@ -289,7 +311,7 @@ function Chat() {
                                                         width={17}
                                                     />
                                                 </button>
-                                                <button className='text-white py-2 px-2 rounded-full dark:filter dark:brightness-0 dark:invert'>    
+                                                <button className='text-white py-2 px-2 rounded-full dark:filter dark:brightness-0 dark:invert'>
                                                     <img src='./trash.png' width={17} />
                                                 </button>
                                             </div>

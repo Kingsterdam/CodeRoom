@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_BASE_URL = 'http://localhost:9090';
+const API_BASE_URL = 'http://localhost:9090/code';
 
 // Fetch code from the server
 export const fetchCode = async (roomId, editorId, language) => {
