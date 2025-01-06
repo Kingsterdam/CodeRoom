@@ -96,8 +96,18 @@ const Editor = forwardRef(({
     onMessage((data) => {
       console.log("Received the code update", data)
       if (data.type === "code") {
-        console.log("code", data)
-        setCode(data.text)
+        editors.map((editor) => {
+          if (editor.id === data.editorId) {
+            editor.content = data.text
+          }
+        })
+        if (data.editorId === editorId) {
+          setCode(data.text)
+        }
+        console.log("editors: ", editors)
+        // console.log("editor id: ", editorId)
+        // console.log("code", data)
+        // setCode(data.text)
       }
     });
 

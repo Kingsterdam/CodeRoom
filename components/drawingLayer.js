@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
+import { useRoomContext } from '@/context/RoomContext';
+import { connectSocket, offDrawing, onDrawing, sendDrawing } from '@/utils/socketCon';
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -28,7 +30,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const [showLaser, setShowLaser] = useState(false);
   const [laserPosition, setLaserPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState('');
-
+  const { room } = useRoomContext();
   const colors = [
     { hex: '#FF0000', name: 'Red' },
     { hex: '#FF8C00', name: 'Orange' },
@@ -117,16 +119,70 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   };
 
   useEffect(() => {
+    connectSocket();
+    onDrawing((data) => {
+      console.log("Received Drawing:", data)
+      if (fabricRef.current) {
+        fabricRef.current.loadFromJSON(data.data, () => {
+          fabricRef.current.renderAll(); // Render the updated canvas
+        });
+        console.log('Received and Rendered Data:', data);
+      }
+    })
+
+    return () => {
+      // Clean up the message listener
+      offDrawing();
+    };
+  }, [])
+
+  useEffect(() => {
     if (fabricRef.current) {
-      fabricRef.current.isDrawingMode = isEnabled && currentTool !== 'laser';
+      const canvas = fabricRef.current;
+
+      // Enable drawing mode
+      canvas.isDrawingMode = isEnabled && currentTool !== 'laser';
       const canvasEl = fabricRef.current.getElement();
       const parentDiv = canvasEl.parentElement;
       if (parentDiv) {
         parentDiv.style.pointerEvents = isEnabled ? 'auto' : 'none';
       }
       canvasEl.style.cursor = currentTool === 'laser' ? 'none' : 'crosshair';
+      // Add event listener for path creation
+      const handlePathCreated = (event) => {
+        const path = event.path; // Get the created path object
+        console.log('Path Created:', path);
+        // sendDrawing(room, path)
+        const drawingData = fabricRef.current.toJSON();
+        sendDrawing(room, drawingData)
+        logDrawingData(); // Log full drawing data
+      };
+
+      canvas.on('path:created', handlePathCreated);
+
+      // Add event listener for object modification (optional)
+      const handleObjectModified = (event) => {
+        const obj = event.target; // Get the modified object
+        console.log('Object Modified:', obj);
+        logDrawingData(); // Log full drawing data
+      };
+
+      canvas.on('object:modified', handleObjectModified);
+
+      return () => {
+        // Cleanup event listeners
+        canvas.off('path:created', handlePathCreated);
+        canvas.off('object:modified', handleObjectModified);
+      };
     }
   }, [isEnabled, currentTool]);
+
+  const logDrawingData = () => {
+    if (fabricRef.current) {
+      const drawingData = fabricRef.current.toJSON();
+      console.log('Drawing Data:', drawingData);
+    }
+  };
 
   useEffect(() => {
     const handleResize = () => {
@@ -189,8 +245,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
             <div className="flex flex-wrap gap-2 border-r border-gray-600 pr-4">
               <button
                 className={`p-2 rounded-lg transition-all ${currentTool === 'pencil'
-                    ? 'bg-gray-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-gray-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   } md:p-1 lg:p-1.5`}
                 onClick={() => changeTool('pencil')}
                 title="Draw"
@@ -199,8 +255,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
               </button>
               <button
                 className={`p-2 rounded-lg transition-all ${currentTool === 'laser'
-                    ? 'bg-gray-600 text-white'
-                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                  ? 'bg-gray-600 text-white'
+                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                   } md:p-1 lg:p-1.5`}
                 onClick={() => changeTool('laser')}
                 title="Laser Pointer"

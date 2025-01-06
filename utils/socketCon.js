@@ -163,6 +163,27 @@ export const sendCodeUpdate = (room, code) => {
     }
 };
 
+export const sendDrawing = (room, data) => {
+    const socket = getSocket();
+    if (room && data) {
+        socket.emit("drawingUpdate", { room, data });
+        console.log(`Code update sent to room ${room}.`);
+    } else {
+        console.error("Room and code are required to send updates.");
+    }
+};
+
+export const onDrawing = (callback) => {
+    const socket = getSocket();
+    socket.on("drawingUpdate", callback);
+};
+
+export const offDrawing = () => {
+    const socket = getSocket();
+    socket.off("drawingUpdate");
+};
+
+
 /**
  * Listens for incoming messages from the server.
  * @param {function} callback - A function to handle incoming messages.
