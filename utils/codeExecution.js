@@ -1,14 +1,13 @@
 const API_URL = 'http://localhost:5000/execute'; 
 
-export const executeCode = async (language, code, input) => {
-  console.log("frontend" + input)
+export const executeCode = async (language, code) => {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ language, code, input}),
+      body: JSON.stringify({ language, code }),
     });
 
     const data = await response.json();
