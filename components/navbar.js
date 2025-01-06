@@ -56,7 +56,7 @@ function Navbar() {
 
     return (
         <div className="flex items-center justify-between ">
-            <div className="text-xl font-bold text-black">
+            <div className="text-xl font-bold text-black dark:text-white">
                 CodeRoom
             </div>
             <div>
@@ -64,8 +64,8 @@ function Navbar() {
                     <button
                         onClick={handlePopup} // Trigger the popup on click
                     >
-                        <span className="green-dot">●</span>
-                        <span className="hidden md:inline px-1.5 text-green-700 font-semibold">
+                        <span className="green-dot dark:text-green-400">●</span>
+                        <span className="hidden md:inline px-1.5 text-green-700 font-semibold dark:text-green-400">
                             Room Active
                         </span>
                     </button>

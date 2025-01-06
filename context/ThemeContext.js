@@ -5,27 +5,34 @@ import { createContext, useState, useEffect, useContext } from "react";
 const ThemeContext = createContext();
 
 export const ThemeProvider = ({ children }) => {
-  const [theme, setTheme] = useState("light");
+  const [mounted, setMounted] = useState(false);
+  const [theme, setTheme] = useState('light');
 
   useEffect(() => {
-    // Get initial theme from localStorage or default to light
-    const savedTheme = localStorage.getItem("theme") || "light";
+    const root = document.documentElement;
+    const savedTheme = localStorage.getItem('theme') || 'light';
     setTheme(savedTheme);
-    document.body.className = savedTheme + "-theme"; // Apply theme class to body
+    root.classList.toggle('dark', savedTheme === 'dark');
+    setMounted(true);
   }, []);
 
   const toggleTheme = () => {
-    const newTheme = theme === "light" ? "dark" : "light";
+    const root = document.documentElement;
+    const newTheme = theme === 'light' ? 'dark' : 'light';
+    root.classList.toggle('dark');
     setTheme(newTheme);
-    localStorage.setItem("theme", newTheme);
-    document.body.className = newTheme + "-theme"; // Toggle body class
+    localStorage.setItem('theme', newTheme);
   };
 
   return (
     <ThemeContext.Provider value={{ theme, toggleTheme }}>
-      {children}
+      {mounted ? children : null}
     </ThemeContext.Provider>
   );
 };
 
-export const useTheme = () => useContext(ThemeContext);
+export const useTheme = () => {
+  const context = useContext(ThemeContext);
+  if (!context) throw new Error('useTheme must be used within ThemeProvider');
+  return context;
+};

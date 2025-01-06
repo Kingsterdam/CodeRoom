@@ -5,6 +5,7 @@ import { ThemeProvider } from "@/context/ThemeContext";
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
 import room from "@/components/room";
 room
+
 const geistSans = Geist({
   variable: "--font-geist-sans",
   subsets: ["latin"],
@@ -23,16 +24,16 @@ export const metadata = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
+      <body
+        className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 transition-colors`}
+      >
         <ErrorBoundary>
-          <ThemeProvider>
+          <ThemeProvider> {/* Ensure ThemeProvider is wrapping everything */}
             <RoomProvider>
               {children}
             </RoomProvider>
           </ThemeProvider>
         </ErrorBoundary>
-
-
       </body>
     </html>
   );
