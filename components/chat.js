@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
 import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
+import { sendInviteCode } from '../utils/sendInvite';
+
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -10,7 +12,11 @@ function Chat() {
     const [isJoinRoomClicked, setIsJoinRoomClicked] = useState(false);
     const [chat, setChat] = useState([]); // State to store chat messages
     const [message, setMessage] = useState(""); // State to store input message 
-    // const { stage, setStage } = useRoomContext();
+    const [Email, setEmail] = useState('');
+    const [loading, setLoading] = useState(false);
+    const [emailMessage, setEmailMessage] = useState('');
+    const [emailMessageColor, setEmailMessageColor] = useState('')
+     // const { stage, setStage  } = useRoomContext();
 
     useEffect(() => {
         if (stage === 0) {
@@ -49,7 +55,7 @@ function Chat() {
         const roomId = generateRoomId();
 
         try {
-            fetch("http://localhost:3300/api/v1/room", {
+            fetch("http://localhost:9090/api/v1/room", {
                 method: "POST",
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -88,7 +94,7 @@ function Chat() {
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
         try {
-            await fetch(`http://localhost:3300/api/v1/room/${room}/increment`, {
+            await fetch(`http://localhost:9090/api/v1/room/${room}/increment`, {
                 method: "PATCH",
                 headers: { 'Content-Type': 'application/json' },
             })
@@ -128,34 +134,36 @@ function Chat() {
     };
 
     const sendInvite = async () => {
-        setLoading(true)
+        setLoading(true);
         if (!Email) {
             setEmailMessage("Please enter a valid email address.");
-            setEmailMessageColor("bg-red-500"); // Error color
+            setEmailMessageColor("bg-red-500");
+            setLoading(false);
             return;
         }
-        const url = window.location.href;
+
         try {
-            const inviteMessage = await sendInviteCode(Email, url);
-            console.log(url)
-            if (inviteMessage) {
-                setEmailMessage("Email sent successfully!");
-                setEmailMessageColor("bg-green-600"); // Success color
+            const url = window.location.href;
+            const response = await sendInviteCode(Email, url);
+            
+            if (response.includes("error") || response.includes("unexpected")) {
+                setEmailMessage(response);
+                setEmailMessageColor("bg-red-500");
             } else {
-                setEmailMessage("Failed to send invite. Please try again.");
-                setEmailMessageColor("bg-red-500"); // Error color
+                setEmailMessage("Email sent successfully!");
+                setEmailMessageColor("bg-green-600");
             }
         } catch (error) {
             setEmailMessage("An unexpected error occurred while sending the invite.");
-            setEmailMessageColor("bg-red-500"); // Error color
+            setEmailMessageColor("bg-red-500");
         } finally {
-            setEmail(""); // Clear the input field
-
-            // Automatically hide the message after 5 seconds
+            setLoading(false);
+            setEmail("");
+            
             setTimeout(() => {
-                setEmailMessage(""); // Clear the message
-                setEmailMessageColor(""); // Reset message color
-            }, 5000); // 5000ms = 5 seconds
+                setEmailMessage("");
+                setEmailMessageColor("");
+            }, 5000);
         }
     };
 
@@ -249,8 +257,12 @@ function Chat() {
                                         </div>
                                     )}
                                 </button>
-
                             </div>
+                            {emailMessage && (
+                                <div className={`mt-2 p-2 text-white rounded ${emailMessageColor}`}>
+                                    {emailMessage}
+                                </div>
+                            )}
                             <div className='flex flex-col mt-5'>
                                 <ul className="list-none px-3">
                                     {users.map((user, index) => (

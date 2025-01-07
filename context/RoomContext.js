@@ -3,6 +3,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { connectSocket, getAllRooms, onMessage, joinRoom } from "@/utils/socketCon";
+import { fetchRooms, incrementRoomMembers } from "@/utils/postgresCon";
 
 const RoomContext = createContext();
 export const RoomProvider = ({ children }) => {
@@ -24,12 +25,12 @@ export const RoomProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
+
     const params = new URLSearchParams(window.location.search);
     const roomFromUrl = params.get('roomId');
     async function fetchAllRooms() {
       try {
-        const response = await fetch("http://localhost:3300/api/v1/room");
-        const allRooms = await response.json();
+        const allRooms = await fetchRooms();
         const foundRoom = allRooms.find((room) => {
           return room.room_id === roomFromUrl
         })
@@ -45,10 +46,8 @@ export const RoomProvider = ({ children }) => {
           setRoomCreated(true);
           setStage(2);
           try {
-            await fetch(`http://localhost:3300/api/v1/room/${roomFromUrl}/increment`, {
-              method: "PATCH",
-              headers: { 'Content-Type': 'application/json' },
-            })
+            const response = incrementRoomMembers(roomFromUrl);
+            console.log(response)
           }
           catch (e) {
             console.error("Unable to increase Members under this room", e)
