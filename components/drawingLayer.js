@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { useRoomContext } from '@/context/RoomContext';
-import { connectSocket, offDrawing, onDrawing, sendDrawing } from '@/utils/socketCon';
+import { connectSocket, offCursor, offDrawing, onCursor, onDrawing, sendCursor, sendDrawing } from '@/utils/socketCon';
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -120,62 +120,41 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
   useEffect(() => {
     connectSocket();
+
     onDrawing((data) => {
-      console.log("Received Drawing:", data)
-      if (fabricRef.current) {
-        fabricRef.current.loadFromJSON(data.data, () => {
-          fabricRef.current.renderAll(); // Render the updated canvas
+      console.log("Received Drawing Data:", data);
+
+      if (fabricRef.current && data.data.points) {
+        const canvas = fabricRef.current;
+
+        const pathString = data.data.points
+          .map(({ x, y }, index) => (index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
+          .join(' ');
+
+        const path = new fabric.Path(pathString, {
+          stroke: data.data.stroke || 'black',
+          strokeWidth: data.data.strokeWidth || 1,
+          fill: null,
+          selectable: false,
+          evented: false,
         });
-        console.log('Received and Rendered Data:', data);
+
+        canvas.add(path);
+        canvas.renderAll();
+        console.log('Rendered Path:', path);
+      } else if (fabricRef.current && !data.data.points) {
+        fabricRef.current.clear();
+        console.log("Cleared drawing")
       }
-    })
+      else {
+        console.error("Invalid drawing data received:", data);
+      }
+    });
 
     return () => {
-      // Clean up the message listener
       offDrawing();
     };
-  }, [])
-
-  useEffect(() => {
-    if (fabricRef.current) {
-      const canvas = fabricRef.current;
-
-      // Enable drawing mode
-      canvas.isDrawingMode = isEnabled && currentTool !== 'laser';
-      const canvasEl = fabricRef.current.getElement();
-      const parentDiv = canvasEl.parentElement;
-      if (parentDiv) {
-        parentDiv.style.pointerEvents = isEnabled ? 'auto' : 'none';
-      }
-      canvasEl.style.cursor = currentTool === 'laser' ? 'none' : 'crosshair';
-      // Add event listener for path creation
-      const handlePathCreated = (event) => {
-        const path = event.path; // Get the created path object
-        console.log('Path Created:', path);
-        // sendDrawing(room, path)
-        const drawingData = fabricRef.current.toJSON();
-        sendDrawing(room, drawingData)
-        logDrawingData(); // Log full drawing data
-      };
-
-      canvas.on('path:created', handlePathCreated);
-
-      // Add event listener for object modification (optional)
-      const handleObjectModified = (event) => {
-        const obj = event.target; // Get the modified object
-        console.log('Object Modified:', obj);
-        logDrawingData(); // Log full drawing data
-      };
-
-      canvas.on('object:modified', handleObjectModified);
-
-      return () => {
-        // Cleanup event listeners
-        canvas.off('path:created', handlePathCreated);
-        canvas.off('object:modified', handleObjectModified);
-      };
-    }
-  }, [isEnabled, currentTool]);
+  }, []);
 
   const logDrawingData = () => {
     if (fabricRef.current) {
@@ -202,6 +181,10 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const clear = () => {
     if (fabricRef.current) {
       fabricRef.current.clear();
+      const drawingData = fabricRef.current.toJSON();
+      console.log("room: ", room)
+      console.log("drawing data: ", drawingData)
+      sendDrawing(room, drawingData)
     }
   };
 
@@ -225,6 +208,180 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
       fabricRef.current.freeDrawingBrush.width = size;
     }
   };
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      const canvas = fabricRef.current;
+
+      // Enable drawing mode
+      canvas.isDrawingMode = isEnabled && currentTool !== 'laser';
+      const canvasEl = fabricRef.current.getElement();
+      const parentDiv = canvasEl.parentElement;
+      if (parentDiv) {
+        parentDiv.style.pointerEvents = isEnabled ? 'auto' : 'none';
+      }
+      canvasEl.style.cursor = currentTool === 'laser' ? 'none' : 'crosshair';
+      // Add event listener for path creation
+      const handlePathCreated = (event) => {
+        const path = event.path;
+        console.log('Path Created:', path);
+        const drawingData = fabricRef.current.toJSON();
+        console.log("Room2", room)
+        // sendDrawing(room, drawingData)
+        logDrawingData(); // Log full drawing data
+      };
+
+      canvas.on('path:created', handlePathCreated);
+
+      // Add event listener for object modification (optional)
+      const handleObjectModified = (event) => {
+        const obj = event.target; // Get the modified object
+        console.log('Object Modified:', obj);
+        logDrawingData(); // Log full drawing data
+      };
+
+      canvas.on('object:modified', handleObjectModified);
+
+      return () => {
+        // Cleanup event listeners
+        canvas.off('path:created', handlePathCreated);
+        canvas.off('object:modified', handleObjectModified);
+      };
+    }
+  }, [isEnabled, currentTool]);
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      const canvas = fabricRef.current;
+
+      // Enable drawing mode
+      canvas.isDrawingMode = true;
+
+      let isDrawing = false; // Track if the user is currently drawing
+
+      // Event: Start drawing
+      const handleMouseDown = () => {
+        isDrawing = true;
+        console.log('Started drawing...');
+      };
+
+      // Event: Log drawing data on each mouse move
+      const handleMouseMove = () => {
+        if (isDrawing) {
+          const brush = fabricRef.current.freeDrawingBrush;
+          if (brush && brush._points && brush._points.length > 0) {
+            const pathData = {
+              points: brush._points.map(({ x, y }) => ({ x, y })), // Extract brush points
+              strokeWidth: brush.width,
+              stroke: brush.color,
+            };
+            console.log('Drawing Points During Drag:', pathData);
+            sendDrawing(room, pathData); // Send the in-progress points data
+          }
+        }
+      };
+
+
+      // Event: Stop drawing
+      const handleMouseUp = () => {
+        if (isDrawing) {
+          isDrawing = false;
+          const finalDrawingData = canvas.toJSON();
+          console.log('Finished drawing. Final data:', finalDrawingData);
+        }
+      };
+
+      // Attach event listeners
+      canvas.on('mouse:down', handleMouseDown);
+      canvas.on('mouse:move', handleMouseMove);
+      canvas.on('mouse:up', handleMouseUp);
+
+      // Cleanup event listeners
+      return () => {
+        canvas.off('mouse:down', handleMouseDown);
+        canvas.off('mouse:move', handleMouseMove);
+        canvas.off('mouse:up', handleMouseUp);
+      };
+    }
+  }, [isEnabled, currentTool, room]);
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      const canvas = fabricRef.current;
+
+      const handleMouseMove = (event) => {
+        const pointer = canvas.getPointer(event.e); // Get cursor position
+        const cursorData = {
+          x: pointer.x,
+          y: pointer.y,
+          name: "Prasoon",
+          color: "#FF0000",
+        };
+        sendCursor(room, cursorData); // Emit cursor data to the server
+      };
+
+      canvas.on('mouse:move', handleMouseMove);
+
+      return () => {
+        canvas.off('mouse:move', handleMouseMove); // Cleanup listener
+      };
+    }
+  }, [isEnabled, currentTool, room]);
+
+  useEffect(() => {
+    onCursor((data) => {
+      console.log("Received Cursor Data:", data);
+
+      if (fabricRef.current) {
+        const canvas = fabricRef.current;
+
+        // Remove existing cursor for the user
+        const existingCursor = canvas.getObjects().find(obj => obj.id === `cursor_${data.data.name}`);
+        if (existingCursor) {
+          canvas.remove(existingCursor);
+        }
+
+        // Create a new circle to represent the cursor
+        const cursorCircle = new fabric.Circle({
+          left: data.data.x,
+          top: data.data.y,
+          radius: 5,
+          fill: data.data.color || 'blue',
+          selectable: false,
+          evented: false,
+          id: `cursor_${data.data.name}`,
+        });
+
+        // Add text (user name) above the cursor
+        const cursorText = new fabric.Text(data.data.name, {
+          left: data.data.x,
+          top: data.data.y - 20,
+          fontSize: 14,
+          fill: 'black',
+          selectable: false,
+          evented: false,
+          id: `text_${data.data.name}`,
+        });
+
+        // Group the cursor and text together
+        const cursorGroup = new fabric.Group([cursorCircle, cursorText], {
+          selectable: false,
+          evented: false,
+          id: `cursor_${data.data.name}`, // Unique identifier for the group
+        });
+
+        // Add the cursor group to the canvas
+        canvas.add(cursorGroup);
+        canvas.renderAll();
+      }
+    });
+
+    return () => {
+      offCursor();
+    };
+  }, []);
+
+
 
   return (
     <>

@@ -169,7 +169,7 @@ export const sendDrawing = (room, data) => {
         socket.emit("drawingUpdate", { room, data });
         console.log(`Code update sent to room ${room}.`);
     } else {
-        console.error("Room and code are required to send updates.");
+        console.error("Room and drawing are required to send updates.");
     }
 };
 
@@ -181,6 +181,26 @@ export const onDrawing = (callback) => {
 export const offDrawing = () => {
     const socket = getSocket();
     socket.off("drawingUpdate");
+};
+
+export const sendCursor = (room, data) => {
+    const socket = getSocket();
+    if (room && data) {
+        socket.emit("cursorUpdate", { room, data });
+        console.log(`Cursor update sent to room ${room}.`);
+    } else {
+        console.error("Room and cursor are required to send updates.");
+    }
+};
+
+export const onCursor = (callback) => {
+    const socket = getSocket();
+    socket.on("cursorUpdate", callback);
+};
+
+export const offCursor = () => {
+    const socket = getSocket();
+    socket.off("cursorUpdate");
 };
 
 

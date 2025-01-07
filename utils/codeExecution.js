@@ -1,4 +1,4 @@
-const API_URL = 'http://localhost:5000/execute'; 
+const API_URL = 'http://localhost:5050/execute';
 
 export const executeCode = async (language, code, input) => {
   console.log("frontend" + input)
@@ -8,11 +8,11 @@ export const executeCode = async (language, code, input) => {
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ language, code, input}),
+      body: JSON.stringify({ language, code, input }),
     });
 
     const data = await response.json();
-    
+
     if (data.output) {
       return { success: true, output: data.output };
     } else if (data.error) {

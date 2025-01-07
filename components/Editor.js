@@ -45,6 +45,7 @@ const Editor = forwardRef(({
   const [output, setOutput] = useState({ status: "", result: "" });
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
+  const [activeTab, setActiveTab] = useState('');
   // React to language changes and update the code sample
 
   const [inputValue, setInputValue] = useState(''); // State to manage input
