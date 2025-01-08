@@ -142,7 +142,12 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
         canvas.add(path);
         canvas.renderAll();
         console.log('Rendered Path:', path);
-      } else if (fabricRef.current && !data.data.points) {
+      } else if (fabricRef.current && data.data.objects) {
+        fabricRef.current.loadFromJSON(data.data, () => {
+          fabricRef.current.renderAll(); // Render the updated canvas
+        });
+      }
+      else if (fabricRef.current && !data.data.objects && !data.data.points) {
         fabricRef.current.clear();
         console.log("Cleared drawing")
       }
@@ -190,6 +195,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
   const changeTool = (tool) => {
     setCurrentTool(tool);
+    console.log("Chnaged tool")
     if (fabricRef.current && tool === 'pencil') {
       fabricRef.current.freeDrawingBrush.color = currentColor;
     }
@@ -225,9 +231,6 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
       const handlePathCreated = (event) => {
         const path = event.path;
         console.log('Path Created:', path);
-        const drawingData = fabricRef.current.toJSON();
-        console.log("Room2", room)
-        // sendDrawing(room, drawingData)
         logDrawingData(); // Log full drawing data
       };
 
@@ -237,6 +240,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
       const handleObjectModified = (event) => {
         const obj = event.target; // Get the modified object
         console.log('Object Modified:', obj);
+        const drawingData = fabricRef.current.toJSON();
+        sendDrawing(room, drawingData)
         logDrawingData(); // Log full drawing data
       };
 
@@ -251,7 +256,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   }, [isEnabled, currentTool]);
 
   useEffect(() => {
-    if (fabricRef.current) {
+    if (fabricRef.current && room && currentTool === "pencil") {
+      console.log("current tool is ", currentTool)
       const canvas = fabricRef.current;
 
       // Enable drawing mode
@@ -303,10 +309,10 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
         canvas.off('mouse:up', handleMouseUp);
       };
     }
-  }, [isEnabled, currentTool, room]);
+  }, [isEnabled, room, currentTool]);
 
   useEffect(() => {
-    if (fabricRef.current) {
+    if (fabricRef.current && room) {
       const canvas = fabricRef.current;
 
       const handleMouseMove = (event) => {
@@ -326,13 +332,13 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
         canvas.off('mouse:move', handleMouseMove); // Cleanup listener
       };
     }
-  }, [isEnabled, currentTool, room]);
+  }, [isEnabled, room]);
 
   useEffect(() => {
     onCursor((data) => {
       console.log("Received Cursor Data:", data);
 
-      if (fabricRef.current) {
+      if (fabricRef.current && room) {
         const canvas = fabricRef.current;
 
         // Remove existing cursor for the user
@@ -379,7 +385,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     return () => {
       offCursor();
     };
-  }, []);
+  }, [room]);
 
 
 
