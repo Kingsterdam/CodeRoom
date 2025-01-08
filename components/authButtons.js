@@ -11,6 +11,7 @@ const AuthButtons = () => {
     const [error, setError] = useState(null);
     const [showProfilePopup, setProfilePopup] = useState(false);
     const [profilePicture, setProfilePicture] = useState('');
+    const [showLoginPopup, setShowLoginPopup] = useState(false);
 
     useEffect(() => {
         async function fetchAuthStatus() {

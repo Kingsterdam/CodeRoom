@@ -4,6 +4,7 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { connectSocket, getAllRooms, onMessage, joinRoom } from "@/utils/socketCon";
 import { fetchRooms, incrementRoomMembers } from "@/utils/postgresCon";
+import { useLoader } from "./loadingContext";
 
 const RoomContext = createContext();
 export const RoomProvider = ({ children }) => {
@@ -11,6 +12,7 @@ export const RoomProvider = ({ children }) => {
   const [stage, setStage] = useState(0)
   const [room, setRoom] = useState("");
   const [language, setLanguage] = useState('python');
+  const { showLoader, hideLoader } = useLoader();
 
   // In RoomContext.js, uncomment and modify the first useEffect
   useEffect(() => {
@@ -30,6 +32,7 @@ export const RoomProvider = ({ children }) => {
     const roomFromUrl = params.get('roomId');
     async function fetchAllRooms() {
       try {
+        showLoader();
         const allRooms = await fetchRooms();
         const foundRoom = allRooms.find((room) => {
           return room.room_id === roomFromUrl
@@ -56,6 +59,9 @@ export const RoomProvider = ({ children }) => {
       }
       catch (e) {
         console.error("Error while getting all rooms", e);
+      }
+      finally {
+        hideLoader();
       }
     }
     if (roomFromUrl)

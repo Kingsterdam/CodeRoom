@@ -5,18 +5,34 @@ import { leaveRoom } from "@/utils/socketCon";
 import "../app/globals.css";
 import AuthButtons from "./authButtons";
 import ThemeToggle from "./themeToggle";
+import { useLoader } from '../context/loadingContext'; // Import the useLoader hook
 
 function Navbar() {
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
     const [showPopup, setShowPopup] = useState(false); // State to manage the popup visibility
-
+    const { showLoader, hideLoader } = useLoader(); // Destructure the showLoader function
     const handlePopup = () => {
         setShowPopup(true); // Show the popup
     };
 
     const handleCloseRoom = async () => {
+        const newMsg = {
+            type: "leave",
+            name: "You",
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+
+        setRoomCreated(false); // Close the room
+        setShowPopup(false); // Hide the popup
+        leaveRoom(room, newMsg)
+        setStage(0);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = baseUrl;
+
+        window.history.pushState({ path: newUrl }, '', newUrl);
         try {
-            const response = await fetch(`http://localhost:3300/api/v1/room/${room}/decrement`, {
+            const response = await fetch(`http://localhost:9090/api/v1/room/${room}/decrement`, {
                 method: "PATCH",
                 headers: { 'Content-Type': 'application/json' },
             })
@@ -25,7 +41,7 @@ function Navbar() {
                 console.log("Members", room_data)
                 if (room_data.updatedRoom.Members === 0) {
                     console.log("Delete called")
-                    await fetch(`http://localhost:3300/api/v1/room/${room}`, {
+                    await fetch(`http://localhost:9090/api/v1/room/${room}`, {
                         method: "DELETE",
                         headers: { 'Content-Type': 'application/json' },
                     })
@@ -35,19 +51,6 @@ function Navbar() {
         catch (e) {
             console.log("Unable to decrease Members under this room", e)
         }
-        setRoomCreated(false); // Close the room
-        setShowPopup(false); // Hide the popup
-        const newMsg = {
-            type: "leave",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        leaveRoom(room, newMsg)
-        setStage(0);
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('?')[0];
-        const newUrl = baseUrl;
-        window.history.pushState({ path: newUrl }, '', newUrl);
     };
 
     const handleCancel = () => {

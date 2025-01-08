@@ -44,7 +44,7 @@ const Editor = forwardRef(({
   const [output, setOutput] = useState({ status: "", result: "" });
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState('');
+  const [activeTab, setActiveTab] = useState('input');
   // React to language changes and update the code sample
 
   const [inputValue, setInputValue] = useState(''); // State to manage input
@@ -89,8 +89,15 @@ const Editor = forwardRef(({
         onContentChange(sampleCode);
       }
     };
-
-    initializeCode();
+    if(room) {
+      initializeCode();
+    }
+    else{
+      const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
+      setCode(sampleCode);
+      onContentChange(sampleCode);
+    }
+    
   }, [room, editorId, language]); // Triggered on room or language change
 
 
@@ -106,7 +113,7 @@ const Editor = forwardRef(({
     };
 
     // Set timeout only when the code changes, and clear the previous timeout
-    timeout = setTimeout(saveCodeOnDelay, 500000); // Try saving after 2000ms of inactivity
+    timeout = setTimeout(saveCodeOnDelay, 2000); // Try saving after 2000ms of inactivity
 
     return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
 

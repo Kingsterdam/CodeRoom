@@ -235,7 +235,7 @@ function App() {
       </header>
 
       <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col "> {/* Added overflow-hidden */}
-        <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg">
+        <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border  bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg">
           {/* Tab Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
             {/* Tabs Section */}
