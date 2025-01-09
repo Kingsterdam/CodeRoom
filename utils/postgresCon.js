@@ -1,8 +1,21 @@
 const API_BASE_URL = 'http://localhost:9090/api';
 
 export const fetchRooms = async () => {
+  
   try {
     const response = await fetch(`${API_BASE_URL}/v1/room`, {
+      credentials: 'include'
+    });
+    return await response.json();
+  } catch (error) {
+    console.error('Error fetching rooms:', error);
+    throw error;
+  }
+};
+
+export const fetchFromRedis = async (room_id) => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/v1/room/${room_id}`, {
       credentials: 'include'
     });
     return await response.json();

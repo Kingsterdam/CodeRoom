@@ -3,7 +3,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { connectSocket, getAllRooms, onMessage, joinRoom } from "@/utils/socketCon";
-import { fetchRooms, incrementRoomMembers } from "@/utils/postgresCon";
+import { fetchRooms, incrementRoomMembers, fetchFromRedis } from "@/utils/postgresCon";
 import { useLoader } from "./loadingContext";
 
 const RoomContext = createContext();
@@ -27,29 +27,33 @@ export const RoomProvider = ({ children }) => {
   }, []);
 
   useEffect(() => {
-
     const params = new URLSearchParams(window.location.search);
-    const roomFromUrl = params.get('roomId');
+    const tokenFromUrl = params.get('token');
+    
     async function fetchAllRooms() {
       try {
         showLoader();
         const allRooms = await fetchRooms();
-        const foundRoom = allRooms.find((room) => {
-          return room.room_id === roomFromUrl
-        })
+        const foundRoom = allRooms.find((room) => room.token === tokenFromUrl);
         console.log("Found room", foundRoom)
+
         if (foundRoom) {
+          const currentUrl = window.location.href;
+          const baseUrl = currentUrl.split('?')[0];
+          const newUrl = `${baseUrl}?roomId=${foundRoom.room_id}`;
+          window.history.pushState({ path: newUrl }, '', newUrl);
+
           const newMsg = {
             type: "join",
             name: "You",
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
-          joinRoom(roomFromUrl, newMsg);
-          setRoom(roomFromUrl);
+          joinRoom(foundRoom.room_id, newMsg);
+          setRoom(foundRoom.room_id);
           setRoomCreated(true);
           setStage(2);
           try {
-            const response = incrementRoomMembers(roomFromUrl);
+            const response = incrementRoomMembers(foundRoom.room_id);
             console.log(response)
           }
           catch (e) {
@@ -64,10 +68,45 @@ export const RoomProvider = ({ children }) => {
         hideLoader();
       }
     }
-    if (roomFromUrl)
-      fetchAllRooms();
-  }, [])
 
+    if (tokenFromUrl)
+      fetchAllRooms();
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const roomFromUrl = params.get('roomId');
+  
+    async function roomOnRedis() {
+      try {
+        const roomData = await fetchFromRedis(roomFromUrl); // Fetch room data based on roomId
+        console.log("Room data", roomData);
+        
+        const newMsg = {
+          type: "join",
+          name: "You",
+          time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }
+
+        if (roomData.token !== '') {
+          joinRoom(roomFromUrl, newMsg);
+          setRoom(roomFromUrl); // Set room ID if found
+          setRoomCreated(true); // Indicate that the room is created
+          setStage(2); // Update stage if necessary
+        } else {
+          setRoomCreated(false); // Indicate that the room is not created
+          setStage(0); // Update stage if necessary
+        }
+      } catch (e) {
+        console.error("Error while getting room from Redis", e);
+      } finally {
+      }
+    }
+    if (roomFromUrl) {
+      roomOnRedis();
+    }
+  }, []);
+  
   return (
     <RoomContext.Provider value={{ isRoomActive, setRoomCreated, stage, setStage, room, setRoom, language, setLanguage }}>
       {children}

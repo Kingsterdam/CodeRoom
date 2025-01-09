@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "CodeRoom",
+  title: "CodeRoom - Collaborative Coding",
   description: "Backend By Amit Mishra",
 };
 

@@ -60,7 +60,27 @@ function Navbar() {
     return (
         <div className="flex items-center justify-between ">
             <div className="text-xl font-bold text-black dark:text-white">
-                CodeRoom
+                <div className="relative group cursor-pointer">
+                    <div className="text-xl font-bold flex items-center">
+                        {/* First part - Code with enhanced gradient */}
+                        <span className="text-black font-bold dark:text-white transition-all duration-300">
+                            Code
+                        </span>
+
+                        {/* Second part - Room with complementary gradient */}
+                        <span className="bg-gradient-to-r from-rose-500 via-amber-500 to-yellow-500 bg-clip-text text-transparent hover:from-rose-400 hover:via-amber-400 hover:to-yellow-400 transition-all duration-300">
+                            Room
+                        </span>
+
+                        {/* Enhanced decorative element */}
+                        <span className="absolute -right-5 top-1/2 -translate-y-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-1">
+                            /&gt;
+                        </span>
+                    </div>
+
+                    {/* Enhanced underline animation */}
+                    <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-600 via-purple-500 to-yellow-500 group-hover:w-full transition-all duration-500 ease-out"></div>
+                </div>
             </div>
             <div>
                 {isRoomActive && (
@@ -75,33 +95,33 @@ function Navbar() {
                 )}
             </div>
             <div className="flex items-center p-2 gap-3">
-                <ThemeToggle/>
+                <ThemeToggle />
                 <AuthButtons />
             </div>
 
             {showPopup && (
-                    <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-                        <div className="bg-white p-6 rounded-lg shadow-lg text-center">
-                            <p className="text-lg font-semibold mb-4">
-                                Are you sure you want to leave the room?
-                            </p>
-                            <div className="flex justify-center gap-4">
-                                <button
-                                    className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
-                                    onClick={handleCloseRoom}
-                                >
-                                    Leave Room
-                                </button>
-                                <button
-                                    className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
-                                    onClick={handleCancel}
-                                >
-                                    Cancel
-                                </button>
-                            </div>
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                        <p className="text-lg font-semibold mb-4">
+                            Are you sure you want to leave the room?
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                className="px-4 py-2 bg-red-500 text-white rounded hover:bg-red-600"
+                                onClick={handleCloseRoom}
+                            >
+                                Leave Room
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+                                onClick={handleCancel}
+                            >
+                                Cancel
+                            </button>
                         </div>
                     </div>
-                )
+                </div>
+            )
             }
         </div >
     );

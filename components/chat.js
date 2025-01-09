@@ -5,6 +5,7 @@ import { sendInviteCode } from '../utils/sendInvite';
 import { createRoom, fetchMessagesForRoom, incrementRoomMembers, sendMessage as sendingMessage } from '../utils/postgresCon';
 import { useLoader } from '../context/loadingContext';
 import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
+import MessageSkeleton from './MessageSkeleton';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -19,20 +20,21 @@ function Chat() {
     const [emailMessage, setEmailMessage] = useState('');
     const [emailMessageColor, setEmailMessageColor] = useState('')
     const { showLoader, hideLoader } = useLoader();
-    const [ showPopup, setShowPopup ] = useState(false);
+    const [showPopup, setShowPopup] = useState(false);
     const [userLoggedIn, setUserLoggedIn] = useState(false);
     const [usersData, setUsersData] = useState(null);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+
 
     // const { stage, setStage  } = useRoomContext();
     useEffect(() => {
         const loadMessages = async () => {
+            setIsLoadingMessages(true);
             try {
-                showLoader();
                 if (room) {
                     const messages = await fetchMessagesForRoom(room);
                     console.log('Fetched messages:', messages);
 
-                    // Transform database messages to match chat format
                     const formattedMessages = messages.map(dbMsg => ({
                         type: dbMsg.message_type || "chat",
                         name: dbMsg.username || "Unknown",
@@ -42,7 +44,7 @@ function Chat() {
                             minute: '2-digit'
                         }),
                         email: dbMsg.user_email,
-                        id: dbMsg.message_id // Keep this for potential message management
+                        id: dbMsg.message_id
                     }));
 
                     setChat(formattedMessages);
@@ -50,7 +52,7 @@ function Chat() {
             } catch (e) {
                 console.error("Error loading messages:", e);
             } finally {
-                hideLoader();
+                setIsLoadingMessages(false);
             }
         };
 
@@ -63,13 +65,13 @@ function Chat() {
     useEffect(() => {
         const loadUserData = async () => {
             const userData = await getAuthStatus();
-            if(userData){
+            if (userData) {
                 setUsersData(userData);
                 setUserLoggedIn(true);
             }
         };
 
-        if(!isRoomActive){
+        if (!isRoomActive) {
             loadUserData();
         }
     }, [])
@@ -126,16 +128,16 @@ function Chat() {
 
     const CreateRoom = async () => {
         const roomId = generateRoomId();
-        showLoader();
-    
+
         // Update URL immediately
         const currentUrl = window.location.href;
         const baseUrl = currentUrl.split('?')[0];
         const newUrl = `${baseUrl}?roomId=${roomId}`;
         window.history.pushState({ path: newUrl }, '', newUrl);
-    
+
         // Perform backend operations in the background
         try {
+            showLoader();
             const responses = await Promise.allSettled([
                 // Database operation in the background
                 createRoom(roomId), // make sure the createRoom function returns the response
@@ -156,7 +158,7 @@ function Chat() {
                     }
                 })
             ]);
-    
+
             // Check if the createRoom API response was unauthorized
             const createRoomResponse = responses[0];
             console.log("Create room response:", createRoomResponse);
@@ -170,7 +172,7 @@ function Chat() {
             setRoomCreated(true);
             setIsCreateRoomClicked(true);
             setIsJoinRoomClicked(false);
-    
+
         } catch (e) {
             console.error("Error in room creation:", e);
             setShowPopup(true);
@@ -178,19 +180,19 @@ function Chat() {
             hideLoader(); // Hide loader once background operations complete
         }
     };
-    
+
 
 
     const handleJoinRoom = async () => {
         if (!userLoggedIn) {
             setShowPopup(true);
         }
-        else{
+        else {
             setIsJoinRoomClicked(true);
             setIsCreateRoomClicked(false);
             setStage(1);
         }
-        
+
     };
     // Modified handlingJoinRoom function
     const handlingJoinRoom = async () => {
@@ -247,7 +249,7 @@ function Chat() {
         if (message.trim()) {
             const timestamp = new Date();
             const messageText = message.trim();
-            
+
             const newMessage = {
                 type: "chat",
                 name: usersData.displayName,
@@ -328,8 +330,8 @@ function Chat() {
         }
 
         try {
-            const url = window.location.href;
-            const response = await sendInviteCode(Email, url);
+            const url = 'http://localhost:3000';
+            const response = await sendInviteCode(Email, url, room);
 
             if (response.includes("error") || response.includes("unexpected")) {
                 setEmailMessage(response);
@@ -377,38 +379,41 @@ function Chat() {
             {/* Chat Section */}
             {activeTab === 'chat' && (
                 <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1 chat_messages">
-                    {chat.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`flex ${message.type === 'join' || message.type === 'leave'
-                                ? 'justify-center'
-                                : message.email === usersData.emails?.[0]?.value
-                                    ? 'justify-end'
-                                    : 'justify-start'
-                                } mb-4`}
-                        >
-                            <div className={`flex flex-col max-w-[80%] ${message.email === usersData.emails?.[0]?.value ? 'items-end' : 'items-start'}`}>
-                                {/* Check if message type is 'Join' */}
-                                {message.type === 'join' || message.type === 'leave' ? (
-                                    <div className="px-1 text-gray-800 name_size italic">
-                                        <span className="text-sm text-gray-400">{message.text}</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="px-1 text-gray-400 name_size">
-                                            {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
+                    {isLoadingMessages ? (
+                        <MessageSkeleton />
+                    ) : (
+                        chat.map((message, index) => (
+                            <div
+                                key={index}
+                                className={`flex ${message.type === 'join' || message.type === 'leave'
+                                    ? 'justify-center'
+                                    : message.email === usersData.emails?.[0]?.value
+                                        ? 'justify-end'
+                                        : 'justify-start'
+                                    } mb-4`}
+                            >
+                                <div className={`flex flex-col max-w-[80%] ${message.email === usersData.emails?.[0]?.value ? 'items-end' : 'items-start'}`}>
+                                    {/* Check if message type is 'Join' */}
+                                    {message.type === 'join' || message.type === 'leave' ? (
+                                        <div className="px-1 text-gray-800 name_size italic">
+                                            <span className="text-sm text-gray-400">{message.text}</span>
                                         </div>
-                                        <div
-                                            className={`text-wrap p-2 ${message.email === usersData.emails?.[0]?.value ? 'bg-gray-800 dark:bg-green-300 dark:text-black text-white' : 'bg-gray-200 text-black'
-                                                } rounded-md border`}
-                                        >
-                                            {message.text || "No content"}
-                                        </div>
-                                    </>
-                                )}
+                                    ) : (
+                                        <>
+                                            <div className="px-1 text-gray-400 name_size">
+                                                {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
+                                            </div>
+                                            <div
+                                                className={`text-wrap p-2 ${message.email === usersData.emails?.[0]?.value ? 'bg-gray-800 dark:bg-green-300 dark:text-black text-white' : 'bg-gray-200 text-black'
+                                                    } rounded-md border`}
+                                            >
+                                                {message.text || "No content"}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )))}
                 </div>
             )}
 
@@ -438,7 +443,7 @@ function Chat() {
                                                 className="w-5 h-5 filter brightness-0 invert dark:invert-0"
                                                 alt="Add Group"
                                             />
-                                            <div className="font-semibold">Invite</div>
+                                            <div className="font-semibold sm:">Invite</div>
                                         </div>
                                     )}
                                 </button>

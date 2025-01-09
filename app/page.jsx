@@ -27,6 +27,7 @@ function App() {
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [idCounter, setIdCounter] = useState(2);
   const room = useRoomContext()
+  
   // useEffect(() => {
   //   console.log('Editors state updated:', editors);
   // }, [editors]);
