@@ -378,7 +378,7 @@ function Chat() {
 
             {/* Chat Section */}
             {activeTab === 'chat' && (
-                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1 chat_messages">
+                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1" style={{height:'calc(100% - 100px)'}}>
                     {isLoadingMessages ? (
                         <MessageSkeleton />
                     ) : (

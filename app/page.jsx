@@ -10,7 +10,7 @@ import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
 import { offEditorUpdate, onEditorUpdate, sendEditorUpdate, sendLanguageUpdate } from '@/utils/socketCon';
 import { useRoomContext } from "../context/RoomContext";
-
+import { Smartphone, Code } from 'lucide-react';
 
 function App() {
   const [editors, setEditors] = useState([{
@@ -27,10 +27,24 @@ function App() {
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [idCounter, setIdCounter] = useState(2);
   const room = useRoomContext()
-  
-  // useEffect(() => {
-  //   console.log('Editors state updated:', editors);
-  // }, [editors]);
+  const [activeView, setActiveView] = useState('editor'); // 'editor' or 'chat'
+  const [isLargeScreen, setIsLargeScreen] = useState(() => window.innerWidth >= 1024);
+
+  // Handle screen resize
+  useEffect(() => {
+    const checkScreenSize = () => {
+      setIsLargeScreen(window.innerWidth >= 1024);
+    };
+
+    // Initial check
+    checkScreenSize();
+
+    // Add event listener
+    window.addEventListener('resize', checkScreenSize);
+
+    // Cleanup
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
 
   const addEditor = () => {
     const newEditor = {
@@ -235,8 +249,12 @@ function App() {
         </ErrorBoundary>
       </header>
 
-      <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col "> {/* Added overflow-hidden */}
-        <div className="flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border  bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg">
+      <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col">
+        
+        <div className={`flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg transition-opacity duration-300 ${
+          !isLargeScreen && activeView !== 'editor' ? 'hidden' : ''
+          }`}
+          style={{ height: 'calc(100vh - 100px)' }}>
           {/* Tab Bar */}
           <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
             {/* Tabs Section */}
@@ -290,7 +308,7 @@ function App() {
               >
                 <option value="vs-dark">Dark</option>
                 <option value="vs-light">Light</option>
-                <option value="hc-black">High Contrast Black</option>
+                <option value="hc-black">Contrast</option>
               </select>
             </div>
           </div>
@@ -378,27 +396,52 @@ function App() {
         </div>
 
         {/* Chat Section */}
-        <div className="hidden relative lg:flex flex-col lg:w-1/4 w-full bg-white dark:bg-opacity-70 dark:bg-black dark:border-none dark:text-white rounded-lg shadow-lg py-4 px-2 border"> {/* Modified flex-grow to h-full and added overflow-hidden */}
+        <div className={`lg:flex flex-col lg:w-1/4 w-full bg-white dark:bg-opacity-70 dark:bg-black dark:border-none dark:text-white rounded-lg shadow-lg py-4 px-2 border transition-opacity duration-300 ${
+            !isLargeScreen && activeView !== 'chat' ? 'hidden' : ''
+          }`}
+          style={{ height: 'calc(100vh - 100px)' }}> {/* Modified flex-grow to h-full and added overflow-hidden */}
           <ErrorBoundary>
             <Chat />
           </ErrorBoundary>
         </div>
 
-        <button
+        {/* Mobile Navigation Footer */}
+        {!isLargeScreen && (
+        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black dark:bg-opacity-90 border-t dark:border-gray-700 flex justify-around items-center h-16 px-4">
+          <button
+            onClick={() => setActiveView('editor')}
+            className={`flex flex-col items-center justify-center w-1/2 py-2 ${activeView === 'editor' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            <Code size={24} />
+            <span className="text-xs mt-1">Editor</span>
+          </button>
+          <button
+            onClick={() => setActiveView('chat')}
+            className={`flex flex-col items-center justify-center w-1/2 py-2 ${activeView === 'chat' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
+          >
+            <Smartphone size={24} />
+            <span className="text-xs mt-1">Chat</span>
+          </button>
+        </div>
+        )}
+
+        {/* <button
           className="lg:hidden bg-white text-black rounded-lg p-2 w-full mt-4 text-sm font-medium hover:bg-gray-50 transition-colors flex-shrink-0"
           onClick={() => setShowChat(!showChat)}
         >
           {showChat ? "Hide Chat" : "Show Chat"}
-        </button>
+        </button> */}
 
         {/* Mobile Chat View */}
-        {showChat && (
+        {/* {showChat && (
           <div className="flex lg:hidden flex-col w-full h-[600px] sm:h-[400px] bg-white sm:overflow-auto dark:bg-opacity-60 dark:bg-black rounded-lg shadow-lg p-4">
             <ErrorBoundary>
               <Chat />
             </ErrorBoundary>
           </div>
-        )}
+        )} */}
+
+        <div className="lg:hidden h-16" />
       </div>
     </div>
   );

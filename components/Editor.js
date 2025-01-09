@@ -247,7 +247,7 @@ const Editor = forwardRef(({
 
 
   return (
-    <div className="relative w-full" ref={editorRef} style={{ height: '91%' }}> {/* Adjust height */}
+    <div className="relative w-full " ref={editorRef} style={{ height: 'calc(100% - 65px)' }}> {/* Adjust height */}
       <MonacoEditor
         height="100%"
         language={language}
