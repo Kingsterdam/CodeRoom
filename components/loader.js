@@ -1,11 +1,30 @@
-// components/Loader.js
-import React from 'react';
+import { useEffect, useState } from 'react';
 
-const Loader = () => (
-  <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
-    <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-white">
+const Loader = () => {
+  const [isComplete, setIsComplete] = useState(false);
+
+  useEffect(() => {
+    // Start completion animation after initial loading animation
+    const timer = setTimeout(() => {
+      setIsComplete(true);
+    }, 2000); // Adjust this timing to match when you want the fast completion to start
+
+    // Remove the component after completion
+    const cleanup = setTimeout(() => {
+      // You can call your unmount function here if needed
+    }, 2300); // Total time: 2000ms + 300ms for completion animation
+
+    return () => {
+      clearTimeout(timer);
+      clearTimeout(cleanup);
+    };
+  }, []);
+
+  return (
+    <div className="line-loader">
+      <div className={`line ${isComplete ? 'complete' : ''}`} />
     </div>
-  </div>
-);
+  );
+};
 
 export default Loader;

@@ -68,7 +68,7 @@ function Navbar() {
                         </span>
 
                         {/* Second part - Room with complementary gradient */}
-                        <span className="bg-gradient-to-r from-rose-500 via-amber-500 to-yellow-500 bg-clip-text text-transparent hover:from-rose-400 hover:via-amber-400 hover:to-yellow-400 transition-all duration-300">
+                        <span className="bg-gradient-to-r from-green-700 via-emerald-400 to-yellow-500 bg-clip-text text-transparent hover:from-rose-400 hover:via-amber-400 hover:to-yellow-400 transition-all duration-300">
                             Room
                         </span>
 
