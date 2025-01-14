@@ -11,6 +11,7 @@ export const getAuthStatus = async () => {
         const response = await axios.get(`${API_URL}/auth/status`, {
             withCredentials: true
         });
+        
         return response.data.user;
     } catch (error) {
         if (error.response?.status !== 401) {

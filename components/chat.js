@@ -2,7 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
 import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
 import { sendInviteCode } from '../utils/sendInvite';
-
+import { createRoom, fetchMessagesForRoom, incrementRoomMembers, sendMessage as sendingMessage } from '../utils/postgresCon';
+import { useLoader } from '../context/loadingContext';
+import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
+import MessageSkeleton from './MessageSkeleton';
+import { useWebRTCAudio } from '@/hooks/webRTCAudio';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -16,7 +20,70 @@ function Chat() {
     const [loading, setLoading] = useState(false);
     const [emailMessage, setEmailMessage] = useState('');
     const [emailMessageColor, setEmailMessageColor] = useState('')
-     // const { stage, setStage  } = useRoomContext();
+    const { showLoader, hideLoader } = useLoader();
+    const [showPopup, setShowPopup] = useState(false);
+    const [userLoggedIn, setUserLoggedIn] = useState(false);
+    const [usersData, setUsersData] = useState(null);
+    const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    const {
+        isMuted,
+        isConnected,
+        audioLevel,
+        connectedPeers,
+        handleToggleMute,
+        userInteracted
+    } = useWebRTCAudio(room, isRoomActive);
+
+    // const { stage, setStage  } = useRoomContext();
+    useEffect(() => {
+        const loadMessages = async () => {
+            setIsLoadingMessages(true);
+            try {
+                if (room) {
+                    const messages = await fetchMessagesForRoom(room);
+                    console.log('Fetched messages:', messages);
+
+                    const formattedMessages = messages.map(dbMsg => ({
+                        type: dbMsg.message_type || "chat",
+                        name: dbMsg.username || "Unknown",
+                        text: dbMsg.message_text,
+                        time: new Date(dbMsg.sent_at).toLocaleTimeString([], {
+                            hour: '2-digit',
+                            minute: '2-digit'
+                        }),
+                        email: dbMsg.user_email,
+                        id: dbMsg.message_id
+                    }));
+
+                    setChat(formattedMessages);
+                }
+            } catch (e) {
+                console.error("Error loading messages:", e);
+            } finally {
+                setIsLoadingMessages(false);
+            }
+        };
+
+        if (room && (stage === 2 || isRoomActive)) {
+            loadMessages();
+        }
+    }, [room, stage, isRoomActive]);
+
+
+    useEffect(() => {
+        const loadUserData = async () => {
+            const userData = await getAuthStatus();
+            if (userData) {
+                setUsersData(userData);
+                setUserLoggedIn(true);
+            }
+        };
+
+        if (!isRoomActive) {
+            loadUserData();
+        }
+    }, [])
+
 
     useEffect(() => {
         if (stage === 0) {
@@ -41,6 +108,22 @@ function Chat() {
         };
     }, []);
 
+    const handleLogin = async () => {
+        try {
+            setLoading(true);
+            setTimeout(() => {
+                window.location.href = getLoginUrl();
+            }, 500);
+        } catch (error) {
+            console.error('Login failed:', error);
+            setError('Failed to login');
+            setLoading(false);
+        }
+    };
+    const handleCancel = () => {
+        setShowPopup(false); // Hide the popup
+    };
+
     function generateRoomId(length = 8) {
         const characters = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
         let roomId = "";
@@ -51,78 +134,184 @@ function Chat() {
         return roomId;
     }
 
-    const CreateRoom = () => {
+    const CreateRoom = async () => {
         const roomId = generateRoomId();
-
-        try {
-            fetch("http://localhost:9090/api/v1/room", {
-                method: "POST",
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    room_id: roomId
-                })
-            })
-        } catch (e) {
-            console.log("Error came while inserting room id", e)
-        }
-        setRoom(roomId);  // This sets the room state
-        const newMsg = {
-            type: "join",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }; // Added isInitialJoin flag
-        setRoomCreated(true);
-        setIsCreateRoomClicked(true);
-        setIsJoinRoomClicked(false);
 
         const currentUrl = window.location.href;
         const baseUrl = currentUrl.split('?')[0];
         const newUrl = `${baseUrl}?roomId=${roomId}`;
         window.history.pushState({ path: newUrl }, '', newUrl);
+
+        try {
+            showLoader();
+            const responses = await Promise.allSettled([
+                createRoom(roomId),
+                new Promise((resolve, reject) => {
+                    try {
+                        joinRoom(roomId, {
+                            type: "join",
+                            name: "You",
+                            time: new Date().toLocaleTimeString([], {
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            })
+                        });
+                        resolve(true);
+                    } catch (error) {
+                        reject(error);
+                    }
+                })
+            ]);
+
+            const createRoomResponse = responses[0];
+            if (createRoomResponse.value.error === 'Not authenticated' || createRoomResponse.value.status === 401) {
+                setShowPopup(true);
+                hideLoader();
+                return;
+            }
+
+            setRoom(roomId);
+            setRoomCreated(true);
+            setIsCreateRoomClicked(true);
+            setIsJoinRoomClicked(false);
+
+        } catch (e) {
+            console.error("Error in room creation:", e);
+            setShowPopup(true);
+        } finally {
+            hideLoader();
+        }
     };
 
 
-    const handleJoinRoom = () => {
-        setIsJoinRoomClicked(true);
-        setIsCreateRoomClicked(false);
-        setStage(1);
+
+    const handleJoinRoom = async () => {
+        if (!userLoggedIn) {
+            setShowPopup(true);
+        }
+        else {
+            setIsJoinRoomClicked(true);
+            setIsCreateRoomClicked(false);
+            setStage(1);
+        }
+
     };
+    // Modified handlingJoinRoom function
     const handlingJoinRoom = async () => {
         const newMsg = {
             type: "join",
-            name: "You",
-            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-        }
-        try {
-            await fetch(`http://localhost:9090/api/v1/room/${room}/increment`, {
-                method: "PATCH",
-                headers: { 'Content-Type': 'application/json' },
+            name: usersData.displayName,
+            time: new Date().toLocaleTimeString([], {
+                hour: '2-digit',
+                minute: '2-digit'
             })
-        }
-        catch (e) {
-            console.log("Unable to increase Members under this room", e)
-        }
-        joinRoom(room, newMsg);
-        setIsJoinRoomClicked(false); // Ensure the input box doesn't stay visible after joining
-        setRoomCreated(true)
-        setStage(2)
+        };
 
-        const currentUrl = window.location.href;
-        const baseUrl = currentUrl.split('?')[0];
-        const newUrl = `${baseUrl}?roomId=${room}`;
-        window.history.pushState({ path: newUrl }, '', newUrl);
+        try {
+            showLoader();
+            const joinRoomResponse = await incrementRoomMembers(room);
+
+            // Fetch existing messages when joining
+            const messages = await fetchMessagesForRoom(room);
+            const formattedMessages = messages.map(dbMessage => ({
+                type: "chat",
+                name: dbMessage.sender || "Unknown",
+                text: dbMessage.content,
+                time: new Date(dbMessage.sent_at).toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                })
+            }));
+
+            console.log("Create room response:", joinRoomResponse);
+            if (joinRoomResponse.value.error === 'Not authenticated' || joinRoomResponse.value.status === 401) {
+                setShowPopup(true);
+                hideLoader();
+                return;
+            }
+
+            setChat(formattedMessages);
+            joinRoom(room, newMsg);
+            setIsJoinRoomClicked(false);
+            setRoomCreated(true);
+            setStage(2);
+
+            const currentUrl = window.location.href;
+            const baseUrl = currentUrl.split('?')[0];
+            const newUrl = `${baseUrl}?roomId=${room}`;
+            window.history.pushState({ path: newUrl }, '', newUrl);
+        } catch (e) {
+            console.log("Error joining room:", e);
+        } finally {
+            hideLoader();
+        }
     };
-    const handleSendMessage = () => {
+    // Modified handleSendMessage to include room_id
+    const handleSendMessage = async () => {
         if (message.trim()) {
+            const timestamp = new Date();
+            const messageText = message.trim();
+
             const newMessage = {
                 type: "chat",
-                name: "You", // Replace this with the current user's name if available
-                text: message,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                name: usersData.displayName,
+                text: messageText,
+                time: timestamp.toLocaleTimeString([], {
+                    hour: '2-digit',
+                    minute: '2-digit'
+                }),
+                email: usersData.emails?.[0]?.value || '',
+                pending: true // Add a pending state
             };
-            setChat((prevChat) => [...prevChat, newMessage]); // Add the new message to the chat state
-            sendMessage(room, newMessage); // Send the message to the server
-            setMessage(""); // Clear the input field
+
+            // Update UI immediately
+            setChat((prevChat) => [...prevChat, newMessage]);
+            setMessage(""); // Clear input right away
+
+            // Send socket message
+            try {
+                await sendMessage(room, newMessage);
+            } catch (socketError) {
+                console.error('Socket send failed:', socketError);
+                // Optionally show a warning that real-time delivery failed
+            }
+
+            // Save to database with retry logic
+            const messageData = {
+                room_id: room,
+                message_type: "chat",
+                username: usersData.displayName,
+                message_text: messageText,
+                user_email: usersData.emails?.[0]?.value || ''
+            };
+
+            const saveToDatabase = async (retries = 3) => {
+                try {
+                    const response = await sendingMessage(messageData);
+                    // Update the message in chat to remove pending state
+                    setChat((prevChat) =>
+                        prevChat.map(msg =>
+                            msg === newMessage
+                                ? { ...msg, pending: false, id: response.id }
+                                : msg
+                        )
+                    );
+                } catch (error) {
+                    console.error(`Database save attempt failed. Retries left: ${retries - 1}`);
+                    if (retries > 1) {
+                        // Wait for 1 second before retrying
+                        await new Promise(resolve => setTimeout(resolve, 1000));
+                        return saveToDatabase(retries - 1);
+                    } else {
+                        // Final failure
+                        console.error('Failed to save message to database after all retries');
+                        // Optionally notify user
+                        // toast.error('Message sent but not saved permanently');
+                    }
+                }
+            };
+            // Start database save process in background
+            saveToDatabase();
         }
     };
 
@@ -143,9 +332,9 @@ function Chat() {
         }
 
         try {
-            const url = window.location.href;
-            const response = await sendInviteCode(Email, url);
-            
+            const url = 'http://localhost:3000';
+            const response = await sendInviteCode(Email, url, room);
+
             if (response.includes("error") || response.includes("unexpected")) {
                 setEmailMessage(response);
                 setEmailMessageColor("bg-red-500");
@@ -159,7 +348,7 @@ function Chat() {
         } finally {
             setLoading(false);
             setEmail("");
-            
+
             setTimeout(() => {
                 setEmailMessage("");
                 setEmailMessageColor("");
@@ -168,7 +357,7 @@ function Chat() {
     };
 
     // Users data
-    const users = ['Amit Mishra', 'Prasoon Saini', 'Abhinav Singh Pundir'];
+    const users = [];
 
     return (
         <div className='relative h-full'>
@@ -191,39 +380,42 @@ function Chat() {
 
             {/* Chat Section */}
             {activeTab === 'chat' && (
-                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1 chat_messages">
-                    {chat.map((message, index) => (
-                        <div
-                            key={index}
-                            className={`flex ${message.type === 'Join' || message.type === 'Leave'
-                                ? 'justify-center'
-                                : message.name === 'You'
-                                    ? 'justify-end'
-                                    : 'justify-start'
-                                } mb-4`}
-                        >
-                            <div className={`flex flex-col max-w-[80%] ${message.name === 'You' ? 'items-end' : 'items-start'}`}>
-                                {/* Check if message type is 'Join' */}
-                                {message.type === 'join' || message.type === 'leave' ? (
-                                    <div className="px-1 text-gray-800 name_size italic">
-                                        <span className="text-sm text-gray-400">{message.text}</span>
-                                    </div>
-                                ) : (
-                                    <>
-                                        <div className="px-1 text-gray-400 name_size">
-                                            {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
+                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1" style={{ height: 'calc(100% - 100px)' }}>
+                    {isLoadingMessages ? (
+                        <MessageSkeleton />
+                    ) : (
+                        chat.map((message, index) => (
+                            <div
+                                key={index}
+                                className={`flex ${message.type === 'join' || message.type === 'leave'
+                                    ? 'justify-center'
+                                    : message.email === usersData.emails?.[0]?.value
+                                        ? 'justify-end'
+                                        : 'justify-start'
+                                    } mb-4`}
+                            >
+                                <div className={`flex flex-col max-w-[80%] ${message.email === usersData.emails?.[0]?.value ? 'items-end' : 'items-start'}`}>
+                                    {/* Check if message type is 'Join' */}
+                                    {message.type === 'join' || message.type === 'leave' ? (
+                                        <div className="px-1 text-gray-800 name_size italic">
+                                            <span className="text-sm text-gray-400">{message.text}</span>
                                         </div>
-                                        <div
-                                            className={`text-wrap p-2 ${message.name === 'You' ? 'bg-gray-800 dark:bg-green-300 dark:text-black text-white' : 'bg-gray-200 text-black'
-                                                } rounded-md border`}
-                                        >
-                                            {message.text || "No content"}
-                                        </div>
-                                    </>
-                                )}
+                                    ) : (
+                                        <>
+                                            <div className="px-1 text-gray-400 name_size">
+                                                {message.name || "Unknown"} <span className="text-gray-500">({message.time || "N/A"})</span>
+                                            </div>
+                                            <div
+                                                className={`text-wrap p-2 ${message.email === usersData.emails?.[0]?.value ? 'bg-gray-800 dark:bg-green-300 dark:text-black text-white' : 'bg-gray-200 text-black'
+                                                    } rounded-md border`}
+                                            >
+                                                {message.text || "No content"}
+                                            </div>
+                                        </>
+                                    )}
+                                </div>
                             </div>
-                        </div>
-                    ))}
+                        )))}
                 </div>
             )}
 
@@ -253,7 +445,7 @@ function Chat() {
                                                 className="w-5 h-5 filter brightness-0 invert dark:invert-0"
                                                 alt="Add Group"
                                             />
-                                            <div className="font-semibold">Invite</div>
+                                            <div className="font-semibold sm:">Invite</div>
                                         </div>
                                     )}
                                 </button>
@@ -284,6 +476,33 @@ function Chat() {
                                             </div>
                                         </div>
                                     ))}
+
+                                    <div className="bg-gray-100 p-2 mb-2 rounded">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm">
+                                                <div>Audio Status: {isConnected ? 'Connected' : 'Disconnected'}</div>
+                                                <div>Microphone: {isMuted ? 'Muted' : 'Active'}</div>
+                                            </div>
+                                            <button
+                                                onClick={handleToggleMute}
+                                                className={`px-4 py-2 rounded ${isMuted
+                                                    ? 'bg-gray-500 text-white'
+                                                    : 'bg-green-500 text-white'
+                                                    }`}
+                                            >
+                                                {isMuted ? 'Unmute' : 'Mute'}
+                                            </button>
+                                        </div>
+                                        {!isMuted && (
+                                            <div className="h-2 bg-gray-200 rounded mt-2">
+                                                <div
+                                                    className="h-full bg-green-500 rounded transition-all duration-100"
+                                                    style={{ width: `${(audioLevel / 255) * 100}%` }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
                                 </ul>
                             </div>
                         </div>
@@ -352,6 +571,29 @@ function Chat() {
                 )
             )}
 
+            {showPopup && (
+                <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-50 z-50">
+                    <div className="bg-white p-6 rounded-lg shadow-lg text-center">
+                        <p className="text-lg font-semibold mb-4">
+                            Please Login to Join the Room
+                        </p>
+                        <div className="flex justify-center gap-4">
+                            <button
+                                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-800"
+                                onClick={handleLogin}
+                            >
+                                Login with Google
+                            </button>
+                            <button
+                                className="px-4 py-2 bg-gray-300 text-black rounded hover:bg-gray-400"
+                                onClick={handleCancel}
+                            >
+                                Cancel
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

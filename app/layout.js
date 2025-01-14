@@ -3,8 +3,8 @@ import "./globals.css";
 import { RoomProvider } from "../context/RoomContext";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ErrorBoundary } from "next/dist/client/components/error-boundary";
-import room from "@/components/room";
-room
+import { LoaderProvider } from '../context/loadingContext'; // Import the LoaderContext
+import { LoaderContextConsumer } from '../components/loaderContextConsumer';
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -17,7 +17,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata = {
-  title: "CodeRoom",
+  title: "CodeRoom - Collaborative Coding",
   description: "Backend By Amit Mishra",
 };
 
@@ -28,13 +28,16 @@ export default function RootLayout({ children }) {
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-white dark:bg-gray-900 transition-colors`}
       >
         <ErrorBoundary>
-          <ThemeProvider> {/* Ensure ThemeProvider is wrapping everything */}
-            <RoomProvider>
-              {children}
-            </RoomProvider>
-          </ThemeProvider>
+          <LoaderProvider>
+            <ThemeProvider>
+              <RoomProvider>
+                <LoaderContextConsumer />
+                {children}
+              </RoomProvider>
+            </ThemeProvider>
+          </LoaderProvider>
         </ErrorBoundary>
       </body>
-    </html>
+    </html >
   );
 }

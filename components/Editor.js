@@ -45,12 +45,72 @@ const Editor = forwardRef(({
   const [output, setOutput] = useState({ status: "", result: "" });
   const editorRef = useRef(null);
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
-  const [activeTab, setActiveTab] = useState('');
+  const [activeTab, setActiveTab] = useState('input');
   // React to language changes and update the code sample
 
   const [inputValue, setInputValue] = useState(''); // State to manage input
   const { room, setRoom } = useRoomContext();
   const [saving, setSaving] = useState(false);
+  const [consoleHeight, setConsoleHeight] = useState(40);
+  const [isDragging, setIsDragging] = useState(false);
+  const dragRef = useRef({
+    startY: 0,
+    startHeight: 0,
+    lastUpdate: 0
+  });
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsDragging(true);
+    const containerRect = editorRef.current.getBoundingClientRect();
+    dragRef.current = {
+      startY: e.clientY,
+      startHeight: consoleHeight,
+      containerHeight: containerRect.height,
+      lastUpdate: performance.now()
+    };
+  };
+
+  useEffect(() => {
+    const handleMouseMove = (e) => {
+      if (!isDragging) return;
+
+      // Use requestAnimationFrame for smooth updates
+      requestAnimationFrame(() => {
+        const now = performance.now();
+        // Limit updates to every 16ms (approximately 60fps)
+        if (now - dragRef.current.lastUpdate < 16) return;
+
+        const deltaY = (dragRef.current.startY - e.clientY);
+        const deltaPercentage = (deltaY / dragRef.current.containerHeight) * 100;
+        const newHeight = dragRef.current.startHeight + deltaPercentage;
+
+        // Smooth clamping between 20% and 80%
+        const clampedHeight = Math.min(Math.max(newHeight, 20), 80);
+        setConsoleHeight(clampedHeight);
+
+        dragRef.current.lastUpdate = now;
+      });
+    };
+
+    const handleMouseUp = () => {
+      setIsDragging(false);
+    };
+
+    if (isDragging) {
+      document.addEventListener('mousemove', handleMouseMove, { passive: true });
+      document.addEventListener('mouseup', handleMouseUp);
+      // Disable text selection while dragging
+      document.body.style.userSelect = 'none';
+    } else {
+      document.body.style.userSelect = '';
+    }
+
+    return () => {
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.userSelect = '';
+    };
+  }, [isDragging]);
 
   useEffect(() => {
     connectSocket()
@@ -90,8 +150,15 @@ const Editor = forwardRef(({
         onContentChange(sampleCode);
       }
     };
+    if (room) {
+      initializeCode();
+    }
+    else {
+      const sampleCode = SAMPLE_CODE[language] || SAMPLE_CODE.default;
+      setCode(sampleCode);
+      onContentChange(sampleCode);
+    }
 
-    initializeCode();
   }, [room, editorId, language]); // Triggered on room or language change
 
 
@@ -107,7 +174,7 @@ const Editor = forwardRef(({
     };
 
     // Set timeout only when the code changes, and clear the previous timeout
-    timeout = setTimeout(saveCodeOnDelay, 500000); // Try saving after 2000ms of inactivity
+    timeout = setTimeout(saveCodeOnDelay, 2000); // Try saving after 2000ms of inactivity
 
     return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
 
@@ -241,7 +308,7 @@ const Editor = forwardRef(({
 
 
   return (
-    <div className="relative w-full" ref={editorRef} style={{ height: '91%' }}> {/* Adjust height */}
+    <div className="relative w-full " ref={editorRef} style={{ height: 'calc(100% - 65px)' }}> {/* Adjust height */}
       <MonacoEditor
         height="100%"
         language={language}
@@ -269,22 +336,37 @@ const Editor = forwardRef(({
       {/* Changes code */}
       {showConsole && (
         <div
-          className="absolute bottom-0 left-0 w-full bg-gray-200 dark:bg-gray-900  p-0 rounded-t-sm transition-all duration-300 ease-in-out"
-          style={{ height: showConsole ? '40%' : '0', overflow: 'hidden' }}
+          className={`absolute bottom-0 left-0 w-full bg-gray-200 dark:bg-gray-900 p-0 rounded-t-sm 
+            ${isDragging ? '' : 'transition-all duration-75 ease-out'}`}
+          style={{
+            height: `${consoleHeight}%`,
+            transform: `translateZ(0)`, // Force GPU acceleration
+            willChange: isDragging ? 'height' : 'auto' // Optimize for animations
+          }}
         >
+          {/* Drag handle */}
+          <div
+            className="absolute top-0 left-0 w-full h-1.5 cursor-ns-resize hover:bg-gray-400 group"
+            onMouseDown={handleMouseDown}
+            style={{
+              background: isDragging ? '#4a5568' : '#cbd5e0',
+              transition: 'background-color 0.15s ease'
+            }}
+          >
+            <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 w-16 h-1 rounded-full bg-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+
           <div className="w-full h-full rounded flex flex-col">
             {/* Tabs */}
             <div className="flex h-1/6 bg-slate-100 dark:bg-black dark:bg-opacity-60 dark:text-white">
               <button
-                className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''
-                  }`}
+                className={`flex-1 p-1 font-bold ${activeTab === 'input' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''}`}
                 onClick={() => setActiveTab('input')}
               >
                 Input
               </button>
               <button
-                className={`flex-1 p-1 font-bold ${activeTab === 'output' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''
-                  }`}
+                className={`flex-1 p-1 font-bold ${activeTab === 'output' ? 'border-b border-b-gray-900 dark:border-b-green-300' : ''}`}
                 onClick={() => setActiveTab('output')}
               >
                 Output
@@ -292,20 +374,20 @@ const Editor = forwardRef(({
             </div>
 
             {/* Content Area */}
-            <div className="w-full h-5/6  overflow-hidden">
+            <div className="w-full h-5/6 overflow-hidden">
               {activeTab === 'input' && (
                 <textarea
                   className="w-full h-full p-2 rounded bg-white dark:bg-black dark:bg-opacity-40 dark:text-white"
                   placeholder="Enter your input here..."
-                  value={inputValue} // Bind the state to the textarea
+                  value={inputValue}
                   onChange={handleInputChange}
-                ></textarea>
+                />
               )}
               {activeTab === 'output' && (
                 <div className="w-full h-full rounded bg-white dark:bg-black dark:bg-opacity-40 dark:text-white overflow-auto">
                   <div className="p-2">
                     <div
-                      className={`text-xl  rounded relative bold font-bold ${output.status === "Success!" ? "text-green-700 dark:text-green-500" : "text-red-700"
+                      className={`text-xl rounded relative bold font-bold ${output.status === "Success!" ? "text-green-700 dark:text-green-500" : "text-red-700"
                         }`}
                       role="alert"
                     >

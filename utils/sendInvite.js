@@ -1,13 +1,13 @@
 const API_URL = "http://localhost:9090/send-invite"; // Use `http` for local development
 
-export const sendInviteCode = async (email, url) => {
+export const sendInviteCode = async (email, url, room) => {
   try {
     const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, url}),
+      body: JSON.stringify({ email, url, room}),
     });
 
     const data = await response.json();
