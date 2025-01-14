@@ -1,9 +1,9 @@
-'use client'
-import React, { useEffect, useState, useRef } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
 
-const WebRTCTest = () => {
+export const useWebRTCAudio = (roomId, isRoomActive) => {
+    // State declarations remain the same
     const [isMuted, setIsMuted] = useState(true);
     const [isConnected, setIsConnected] = useState(false);
     const [audioLevel, setAudioLevel] = useState(0);
@@ -11,6 +11,7 @@ const WebRTCTest = () => {
     const [pendingAudioElements, setPendingAudioElements] = useState([]);
     const [userInteracted, setUserInteracted] = useState(false);
 
+    // Refs remain the same
     const socketRef = useRef();
     const deviceRef = useRef();
     const producerTransportRef = useRef();
@@ -22,42 +23,113 @@ const WebRTCTest = () => {
     const analyserRef = useRef();
     const animationFrameRef = useRef();
 
-    useEffect(() => {
-        connectToServer();
-        return () => cleanup();
-    }, []);
-    useEffect(() => {
-        // Add click listener to document for initial user interaction
-        const handleFirstInteraction = () => {
-            setUserInteracted(true);
-            // Try to play all pending audio elements
-            pendingAudioElements.forEach(audioEl => {
-                audioEl.play().catch(console.error);
+    // Initialize audio context
+    const initializeAudioContext = async () => {
+        if (!audioContextRef.current) {
+            try {
+                audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+                analyserRef.current = audioContextRef.current.createAnalyser();
+                analyserRef.current.fftSize = 256;
+            } catch (error) {
+                console.error('Error initializing audio context:', error);
+                throw error;
+            }
+        }
+    };
+
+    // Audio level monitoring
+    const startAudioLevelMonitoring = (stream) => {
+        const audioTrack = stream.getAudioTracks()[0];
+        if (!audioTrack) return;
+
+        const source = audioContextRef.current.createMediaStreamSource(stream);
+        source.connect(analyserRef.current);
+
+        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
+
+        const checkAudioLevel = () => {
+            analyserRef.current.getByteFrequencyData(dataArray);
+            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
+            setAudioLevel(average);
+            animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+        };
+
+        checkAudioLevel();
+    };
+
+const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParameters }) => {
+        try {
+            const consumer = await consumerTransportRef.current.consume({
+                id: consumerId,
+                producerId,
+                kind,
+                rtpParameters
             });
-            setPendingAudioElements([]);
-            document.removeEventListener('click', handleFirstInteraction);
-        };
 
-        document.addEventListener('click', handleFirstInteraction);
+            const stream = new MediaStream();
+            stream.addTrack(consumer.track);
 
-        return () => {
-            document.removeEventListener('click', handleFirstInteraction);
-        };
-    }, [pendingAudioElements]);
+            const audioEl = new Audio();
+            audioEl.srcObject = stream;
+            audioEl.autoplay = true;
+            audioEl.playsInline = true;
 
-    const connectToServer = () => {
-        console.log('Connecting to server...');
+            if (userInteracted) {
+                try {
+                    await audioEl.play();
+                    console.log('Audio playback started successfully');
+                } catch (error) {
+                    console.error('Error playing audio:', error);
+                }
+            } else {
+                console.log('Queueing audio element for playback after user interaction');
+                setPendingAudioElements(prev => [...prev, audioEl]);
+            }
+
+            consumersRef.current.set(producerId, {
+                consumer,
+                audioElement: audioEl
+            });
+
+            setConnectedPeers(consumersRef.current.size);
+
+            await consumer.resume();
+            socketRef.current.emit('resumeConsumer', { consumerId });
+
+            console.log('Consumer setup complete for producer:', producerId);
+        } catch (error) {
+            console.error('Error in handleConsumerCreated:', error);
+        }
+    };
+
+    // Fixed consumeAudio function
+    const consumeAudio = async (producerId) => {
+        try {
+            socketRef.current.emit('consume', {
+                producerId,
+                rtpCapabilities: deviceRef.current.rtpCapabilities,
+                transportId: consumerTransportRef.current.id
+            });
+        } catch (error) {
+            console.error('Error consuming audio:', error);
+        }
+    };
+
+    // Connect to audio server with room context
+    const connectToAudioServer = () => {
+        console.log('Connecting to audio server...');
         socketRef.current = io('http://localhost:3002', {
             transports: ['websocket'],
             reconnection: true,
             reconnectionAttempts: 5,
             reconnectionDelay: 1000,
             reconnectionDelayMax: 5000,
-            timeout: 20000
+            timeout: 20000,
+            query: { roomId } // Add roomId to connection query
         });
 
         socketRef.current.on('connect', () => {
-            console.log('Connected to server:', socketRef.current.id);
+            console.log('Connected to audio server:', socketRef.current.id);
             setIsConnected(true);
             deviceRef.current = new Device();
             setupWebRTC();
@@ -66,12 +138,16 @@ const WebRTCTest = () => {
         setupSocketListeners();
     };
 
-    const setupSocketListeners = () => {
+    // Rest of the functions remain the same
+    const setupWebRTC = () => {
+        socketRef.current.emit('getRouterRtpCapabilities');
+    };
+
+    // Setup socket listeners
+     const setupSocketListeners = () => {
         socketRef.current.on('routerRtpCapabilities', async (routerRtpCapabilities) => {
             try {
-                console.log('Received router capabilities');
                 await deviceRef.current.load({ routerRtpCapabilities });
-                console.log('Device loaded successfully');
                 socketRef.current.emit('createWebRtcTransport', { sender: true });
             } catch (error) {
                 console.error('Error loading device:', error);
@@ -95,30 +171,20 @@ const WebRTCTest = () => {
         });
 
         socketRef.current.on('newProducer', async ({ producerId }) => {
-            console.log('New producer available:', producerId);
             if (consumerTransportRef.current) {
                 await consumeAudio(producerId);
             }
         });
 
-        socketRef.current.on('consumerCreated', async (params) => {
-            await handleConsumerCreated(params);
-        });
-
-        socketRef.current.on('producerClosed', ({ producerId }) => {
-            handleProducerClosed(producerId);
-        });
+        socketRef.current.on('consumerCreated', handleConsumerCreated);
+        socketRef.current.on('producerClosed', handleProducerClosed);
 
         socketRef.current.on('peers', (peers) => {
-            console.log('Current peers:', peers);
             setConnectedPeers(peers.length);
         });
     };
 
-    const setupWebRTC = () => {
-        socketRef.current.emit('getRouterRtpCapabilities');
-    };
-
+    // Setup send transport
     const setupSendTransport = async (params) => {
         producerTransportRef.current = deviceRef.current.createSendTransport(params);
 
@@ -148,10 +214,10 @@ const WebRTCTest = () => {
             }
         });
 
-        // Create receive transport after send transport is set up
         socketRef.current.emit('createWebRtcTransport', { sender: false });
     };
 
+    // Setup receive transport
     const setupReceiveTransport = async (params) => {
         consumerTransportRef.current = deviceRef.current.createRecvTransport(params);
 
@@ -168,86 +234,35 @@ const WebRTCTest = () => {
         });
     };
 
-    const consumeAudio = async (producerId) => {
-        try {
-            socketRef.current.emit('consume', {
-                producerId,
-                rtpCapabilities: deviceRef.current.rtpCapabilities,
-                transportId: consumerTransportRef.current.id
-            });
-        } catch (error) {
-            console.error('Error consuming audio:', error);
+    const handleProducerClosed = (producerId) => {
+        const consumerData = consumersRef.current.get(producerId);
+        if (consumerData) {
+            const { consumer, audioElement } = consumerData;
+            consumer.close();
+            audioElement.remove();
+            consumersRef.current.delete(producerId);
         }
     };
 
-
-    const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParameters }) => {
-        try {
-            const consumer = await consumerTransportRef.current.consume({
-                id: consumerId,
-                producerId,
-                kind,
-                rtpParameters
-            });
-
-            const stream = new MediaStream();
-            stream.addTrack(consumer.track);
-
-            const audioEl = new Audio();
-            audioEl.srcObject = stream;
-            audioEl.autoplay = true;
-            audioEl.playsInline = true;
-
-            // Try to play audio based on user interaction state
-            if (userInteracted) {
-                try {
-                    await audioEl.play();
-                    console.log('Audio playback started successfully');
-                } catch (error) {
-                    console.error('Error playing audio:', error);
-                }
-            } else {
-                console.log('Queueing audio element for playback after user interaction');
-                setPendingAudioElements(prev => [...prev, audioEl]);
-            }
-
-            // Store consumer data
-            consumersRef.current.set(producerId, {
-                consumer,
-                audioElement: audioEl
-            });
-
-            setConnectedPeers(consumersRef.current.size);
-
-            // Resume the consumer
-            await consumer.resume();
-            socketRef.current.emit('resumeConsumer', { consumerId });
-
-            console.log('Consumer setup complete for producer:', producerId);
-        } catch (error) {
-            console.error('Error setting up consumer:', error);
-        }
-    };
-
+    // Toggle mute function
     const handleToggleMute = async () => {
         try {
             if (isMuted) {
                 await initializeAudioContext();
+
                 streamRef.current = await navigator.mediaDevices.getUserMedia({
                     audio: {
                         echoCancellation: true,
                         noiseSuppression: true,
                         autoGainControl: true,
-                        channelCount: 1, // Mono for better performance
-                        sampleRate: 48000, // Standard WebRTC sample rate
-                        sampleSize: 16 // Standard WebRTC sample size
+                        channelCount: 1,
+                        sampleRate: 48000,
+                        sampleSize: 16
                     },
                     video: false
                 });
 
-                // Wait for the producer transport to be ready
                 if (!producerTransportRef.current) {
-                    console.log('Waiting for producer transport to be ready...');
                     await new Promise(resolve => {
                         const checkTransport = setInterval(() => {
                             if (producerTransportRef.current) {
@@ -282,40 +297,13 @@ const WebRTCTest = () => {
             setIsMuted(!isMuted);
         } catch (error) {
             console.error('Error toggling mute:', error);
+            setIsMuted(true);
+            setAudioLevel(0);
+            throw error;
         }
     };
 
-    const initializeAudioContext = async () => {
-        if (!audioContextRef.current) {
-            try {
-                audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
-                analyserRef.current = audioContextRef.current.createAnalyser();
-                analyserRef.current.fftSize = 256;
-            } catch (error) {
-                console.error('Error initializing audio context:', error);
-            }
-        }
-    };
-
-    const startAudioLevelMonitoring = (stream) => {
-        const audioTrack = stream.getAudioTracks()[0];
-        if (!audioTrack) return;
-
-        const source = audioContextRef.current.createMediaStreamSource(stream);
-        source.connect(analyserRef.current);
-
-        const dataArray = new Uint8Array(analyserRef.current.frequencyBinCount);
-
-        const checkAudioLevel = () => {
-            analyserRef.current.getByteFrequencyData(dataArray);
-            const average = dataArray.reduce((a, b) => a + b) / dataArray.length;
-            setAudioLevel(average);
-            animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
-        };
-
-        checkAudioLevel();
-    };
-
+    // Cleanup function
     const cleanup = () => {
         if (socketRef.current) {
             socketRef.current.disconnect();
@@ -344,36 +332,34 @@ const WebRTCTest = () => {
         }
     };
 
-    return (
-        <div className="p-4">
-            <h1 className="text-xl mb-4">WebRTC Audio Test</h1>
-            {!userInteracted && pendingAudioElements.length > 0 && (
-                <div className="bg-yellow-100 border border-yellow-400 text-yellow-700 px-4 py-3 rounded mb-4">
-                    Click anywhere on the page to enable audio playback
-                </div>
-            )}
-            <div className="space-y-4">
-                <div className="flex flex-col gap-2">
-                    <div>Connection Status: {isConnected ? 'Connected' : 'Disconnected'}</div>
-                    <div>Microphone Status: {isMuted ? 'Muted' : 'Active'}</div>
-                    <div>Audio Level: {audioLevel.toFixed(2)}</div>
-                    <div>Connected Peers: {connectedPeers}</div>
-                </div>
-                <button
-                    onClick={handleToggleMute}
-                    className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600"
-                >
-                    {isMuted ? 'Unmute Microphone' : 'Mute Microphone'}
-                </button>
-                <div className="h-4 w-full bg-gray-200 rounded">
-                    <div
-                        className="h-full bg-green-500 rounded transition-all duration-100"
-                        style={{ width: `${(audioLevel / 255) * 100}%` }}
-                    />
-                </div>
-            </div>
-        </div>
-    );
-};
+    useEffect(() => {
+        const handleFirstInteraction = () => {
+            setUserInteracted(true);
+            pendingAudioElements.forEach(audioEl => {
+                audioEl.play().catch(console.error);
+            });
+            setPendingAudioElements([]);
+            document.removeEventListener('click', handleFirstInteraction);
+        };
 
-export default WebRTCTest;
+        document.addEventListener('click', handleFirstInteraction);
+        return () => document.removeEventListener('click', handleFirstInteraction);
+    }, [pendingAudioElements]);
+
+    // Effect for room connection
+    useEffect(() => {
+        if (isRoomActive && roomId) {
+            connectToAudioServer();
+        }
+        return cleanup;
+    }, [isRoomActive, roomId]);
+
+    return {
+        isMuted,
+        isConnected,
+        audioLevel,
+        connectedPeers,
+        handleToggleMute,
+        userInteracted
+    };
+};

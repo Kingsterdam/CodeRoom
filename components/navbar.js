@@ -68,19 +68,12 @@ function Navbar() {
                         </span>
 
                         {/* Second part - Room with complementary gradient */}
-                        <span className="bg-gradient-to-r from-green-700 via-emerald-400 to-yellow-500 bg-clip-text text-transparent hover:from-rose-400 hover:via-amber-400 hover:to-yellow-400 transition-all duration-300">
+                        <span className="bg-gray-900 text-white p-1 rounded-md dark:bg-white dark:text-black transition-all duration-300">
                             Room
-                        </span>
-
-                        {/* Enhanced decorative element */}
-                        <span className="absolute -right-5 top-1/2 -translate-y-1/2 bg-gradient-to-r from-amber-500 to-yellow-500 bg-clip-text text-transparent opacity-0 group-hover:opacity-100 transition-all duration-300 transform group-hover:translate-x-1">
-                            /&gt;
                         </span>
                     </div>
 
-                    {/* Enhanced underline animation */}
-                    <div className="absolute bottom-0 left-0 w-0 h-0.5 bg-gradient-to-r from-indigo-600 via-purple-500 to-yellow-500 group-hover:w-full transition-all duration-500 ease-out"></div>
-                </div>
+                    </div>
             </div>
             <div>
                 {isRoomActive && (

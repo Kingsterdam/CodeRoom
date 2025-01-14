@@ -6,6 +6,7 @@ import { createRoom, fetchMessagesForRoom, incrementRoomMembers, sendMessage as 
 import { useLoader } from '../context/loadingContext';
 import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
 import MessageSkeleton from './MessageSkeleton';
+import { useWebRTCAudio } from '@/hooks/webRTCAudio';
 
 function Chat() {
     const [activeTab, setActiveTab] = useState('chat');
@@ -24,7 +25,14 @@ function Chat() {
     const [userLoggedIn, setUserLoggedIn] = useState(false);
     const [usersData, setUsersData] = useState(null);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
-
+    const {
+        isMuted,
+        isConnected,
+        audioLevel,
+        connectedPeers,
+        handleToggleMute,
+        userInteracted
+    } = useWebRTCAudio(room, isRoomActive);
 
     // const { stage, setStage  } = useRoomContext();
     useEffect(() => {
@@ -129,19 +137,15 @@ function Chat() {
     const CreateRoom = async () => {
         const roomId = generateRoomId();
 
-        // Update URL immediately
         const currentUrl = window.location.href;
         const baseUrl = currentUrl.split('?')[0];
         const newUrl = `${baseUrl}?roomId=${roomId}`;
         window.history.pushState({ path: newUrl }, '', newUrl);
 
-        // Perform backend operations in the background
         try {
             showLoader();
             const responses = await Promise.allSettled([
-                // Database operation in the background
-                createRoom(roomId), // make sure the createRoom function returns the response
-                // Socket operation
+                createRoom(roomId),
                 new Promise((resolve, reject) => {
                     try {
                         joinRoom(roomId, {
@@ -159,9 +163,7 @@ function Chat() {
                 })
             ]);
 
-            // Check if the createRoom API response was unauthorized
             const createRoomResponse = responses[0];
-            console.log("Create room response:", createRoomResponse);
             if (createRoomResponse.value.error === 'Not authenticated' || createRoomResponse.value.status === 401) {
                 setShowPopup(true);
                 hideLoader();
@@ -177,7 +179,7 @@ function Chat() {
             console.error("Error in room creation:", e);
             setShowPopup(true);
         } finally {
-            hideLoader(); // Hide loader once background operations complete
+            hideLoader();
         }
     };
 
@@ -355,7 +357,7 @@ function Chat() {
     };
 
     // Users data
-    const users = ['Amit Mishra', 'Prasoon Saini', 'Abhinav Singh Pundir'];
+    const users = [];
 
     return (
         <div className='relative h-full'>
@@ -378,7 +380,7 @@ function Chat() {
 
             {/* Chat Section */}
             {activeTab === 'chat' && (
-                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1" style={{height:'calc(100% - 100px)'}}>
+                <div className="flex-1 flex-col-reverse overflow-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 py-4 px-1" style={{ height: 'calc(100% - 100px)' }}>
                     {isLoadingMessages ? (
                         <MessageSkeleton />
                     ) : (
@@ -474,6 +476,33 @@ function Chat() {
                                             </div>
                                         </div>
                                     ))}
+
+                                    <div className="bg-gray-100 p-2 mb-2 rounded">
+                                        <div className="flex items-center justify-between">
+                                            <div className="text-sm">
+                                                <div>Audio Status: {isConnected ? 'Connected' : 'Disconnected'}</div>
+                                                <div>Microphone: {isMuted ? 'Muted' : 'Active'}</div>
+                                            </div>
+                                            <button
+                                                onClick={handleToggleMute}
+                                                className={`px-4 py-2 rounded ${isMuted
+                                                    ? 'bg-gray-500 text-white'
+                                                    : 'bg-green-500 text-white'
+                                                    }`}
+                                            >
+                                                {isMuted ? 'Unmute' : 'Mute'}
+                                            </button>
+                                        </div>
+                                        {!isMuted && (
+                                            <div className="h-2 bg-gray-200 rounded mt-2">
+                                                <div
+                                                    className="h-full bg-green-500 rounded transition-all duration-100"
+                                                    style={{ width: `${(audioLevel / 255) * 100}%` }}
+                                                />
+                                            </div>
+                                        )}
+                                    </div>
+
                                 </ul>
                             </div>
                         </div>
@@ -564,9 +593,7 @@ function Chat() {
                         </div>
                     </div>
                 </div>
-            )
-            }
-
+            )}
         </div>
     );
 }
