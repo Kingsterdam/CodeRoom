@@ -2,6 +2,63 @@ import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { useRoomContext } from '@/context/RoomContext';
 import { connectSocket, offCursor, offDrawing, onCursor, onDrawing, sendCursor, sendDrawing } from '@/utils/socketCon';
+import msgpack from 'msgpack-lite';
+import { throttle } from 'lodash';
+
+const convertToBinary = (data) => {
+  if (!data) return null;
+  try {
+    return msgpack.encode(data);
+  } catch (error) {
+    console.error('Error encoding binary data:', error);
+    return null;
+  }
+};
+
+const convertFromBinary = (binaryData) => {
+  if (!binaryData) return null;
+  try {
+    // Handle ArrayBuffer conversion
+    if (binaryData instanceof ArrayBuffer) {
+      binaryData = new Uint8Array(binaryData);
+    }
+    return msgpack.decode(Buffer.from(binaryData));
+  } catch (error) {
+    console.error('Error decoding binary data:', error);
+    return null;
+  }
+};
+
+// Compress path data before sending
+const compressPathData = (points) => {
+  // Remove redundant points and convert to efficient format
+  const tolerance = 2;
+  const compressedPoints = points.filter((point, index, array) => {
+    if (index === 0) return true;
+    const prevPoint = array[index - 1];
+    const distance = Math.hypot(point.x - prevPoint.x, point.y - prevPoint.y);
+    return distance >= tolerance;
+  });
+
+  // Convert to more efficient format: [x1,y1,x2,y2,...]
+  return compressedPoints.reduce((acc, point) => {
+    acc.push(Math.round(point.x * 100) / 100); // Keep 2 decimal places
+    acc.push(Math.round(point.y * 100) / 100);
+    return acc;
+  }, []);
+};
+
+// Decompress received path data
+const decompressPathData = (flatPoints) => {
+  const points = [];
+  for (let i = 0; i < flatPoints.length; i += 2) {
+    points.push({
+      x: flatPoints[i],
+      y: flatPoints[i + 1]
+    });
+  }
+  return points;
+};
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -24,6 +81,8 @@ const LaserIcon = () => (
 const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const fabricRef = useRef(null);
   const laserTimeoutRef = useRef(null);
+  const pathPointsRef = useRef([]);
+  const lastSentPointsRef = useRef(null);
   const [currentColor, setCurrentColor] = useState('#FF0000');
   const [currentTool, setCurrentTool] = useState('pencil');
   const [brushSize, setBrushSize] = useState(2);
@@ -31,6 +90,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const [laserPosition, setLaserPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState('');
   const { room } = useRoomContext();
+  const cursorUpdateTimeoutRef = useRef(null);
+  const batchTimeoutRef = useRef(null);
   const colors = [
     { hex: '#FF0000', name: 'Red' },
     { hex: '#FF8C00', name: 'Orange' },
@@ -41,6 +102,30 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     { hex: '#000000', name: 'Black' },
     { hex: '#FFFFFF', name: 'White' },
   ];
+
+  // Throttled cursor update with binary data
+  const sendThrottledCursor = throttle((cursorData) => {
+    // const binaryCursorData = convertToBinary({
+    //   t: 'c', // type: cursor
+    //   x: Math.round(cursorData.x * 100) / 100,
+    //   y: Math.round(cursorData.y * 100) / 100,
+    //   n: cursorData.name,
+    //   c: cursorData.color
+    // });
+    sendCursor(room, cursorData);
+  });
+
+  // Throttled drawing update with binary data
+  const sendThrottledDrawing = throttle((room, drawingData) => {
+    // const binaryDrawingData = convertToBinary({
+    //   t: 'd', // type: drawing
+    //   p: compressPathData(drawingData.points),
+    //   s: drawingData.stroke,
+    //   w: drawingData.strokeWidth
+    // });
+    sendDrawing(room, drawingData);
+  }, 50);
+
 
   useEffect(() => {
     if (!containerRef.current || fabricRef.current) return;
@@ -118,22 +203,99 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     }
   };
 
+
+  // Update the mouse event handlers in the drawing effect:
+  useEffect(() => {
+    if (fabricRef.current && room && currentTool === "pencil") {
+      const canvas = fabricRef.current;
+      let isDrawing = false;
+      let currentPath = null;
+
+      const handleMouseDown = (event) => {
+        isDrawing = true;
+        const pointer = canvas.getPointer(event.e);
+
+        // Start a new path
+        currentPath = new fabric.Path(`M ${pointer.x} ${pointer.y}`, {
+          stroke: canvas.freeDrawingBrush.color,
+          strokeWidth: canvas.freeDrawingBrush.width,
+          fill: null,
+          selectable: false,
+          evented: false,
+        });
+
+        canvas.add(currentPath);
+        pathPointsRef.current = [pointer];
+
+        // Send initial point
+        const drawingData = {
+          t: 'd',
+          p: [{ x: pointer.x, y: pointer.y }],
+          s: canvas.freeDrawingBrush.color,
+          w: canvas.freeDrawingBrush.width
+        };
+
+        sendThrottledDrawing(room, convertToBinary(drawingData));
+      };
+
+      const handleMouseMove = (event) => {
+        if (!isDrawing || !currentPath) return;
+
+        const pointer = canvas.getPointer(event.e);
+        pathPointsRef.current.push(pointer);
+
+        // Update the path
+        currentPath.path.push(['L', pointer.x, pointer.y]);
+        currentPath.setCoords();
+        canvas.renderAll();
+
+        // Send updated path data
+        const drawingData = {
+          t: 'd',
+          p: [{ x: pointer.x, y: pointer.y }],
+          s: canvas.freeDrawingBrush.color,
+          w: canvas.freeDrawingBrush.width
+        };
+
+        sendThrottledDrawing(room, convertToBinary(drawingData));
+      };
+
+      const handleMouseUp = () => {
+        isDrawing = false;
+        currentPath = null;
+        pathPointsRef.current = [];
+      };
+
+      canvas.on('mouse:down', handleMouseDown);
+      canvas.on('mouse:move', handleMouseMove);
+      canvas.on('mouse:up', handleMouseUp);
+
+      return () => {
+        canvas.off('mouse:down', handleMouseDown);
+        canvas.off('mouse:move', handleMouseMove);
+        canvas.off('mouse:up', handleMouseUp);
+      };
+    }
+  }, [isEnabled, room, currentTool]);
+
+  // Update the drawing event listener
   useEffect(() => {
     connectSocket();
 
-    onDrawing((data) => {
+    onDrawing((binaryData) => {
+      let data = convertFromBinary(binaryData);
       console.log("Received Drawing Data:", data);
-
-      if (fabricRef.current && data.data.points) {
+      
+      if (fabricRef.current && data.p) {
         const canvas = fabricRef.current;
 
-        const pathString = data.data.points
+        const pathString = data.p
           .map(({ x, y }, index) => (index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
           .join(' ');
 
         const path = new fabric.Path(pathString, {
-          stroke: data.data.stroke || 'black',
-          strokeWidth: data.data.strokeWidth || 1,
+          stroke: data.s || 'black',
+          strokeWidth: data.w || 1,
           fill: null,
           selectable: false,
           evented: false,
@@ -161,6 +323,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     };
   }, []);
 
+
+
   const logDrawingData = () => {
     if (fabricRef.current) {
       const drawingData = fabricRef.current.toJSON();
@@ -183,13 +347,11 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     return () => window.removeEventListener('resize', handleResize);
   }, [containerRef]);
 
+  // Update the clear function
   const clear = () => {
     if (fabricRef.current) {
       fabricRef.current.clear();
-      const drawingData = fabricRef.current.toJSON();
-      console.log("room: ", room)
-      console.log("drawing data: ", drawingData)
-      sendDrawing(room, drawingData)
+      sendThrottledDrawing(room, convertToBinary({ t: 'clear' }));
     }
   };
 
@@ -241,7 +403,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
         const obj = event.target; // Get the modified object
         console.log('Object Modified:', obj);
         const drawingData = fabricRef.current.toJSON();
-        sendDrawing(room, drawingData)
+        sendThrottledDrawing(room, convertToBinary(drawingData))
         logDrawingData(); // Log full drawing data
       };
 
@@ -255,137 +417,168 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     }
   }, [isEnabled, currentTool]);
 
+  // Handle drawing actions
   useEffect(() => {
     if (fabricRef.current && room && currentTool === "pencil") {
-      console.log("current tool is ", currentTool)
       const canvas = fabricRef.current;
+      let isDrawing = false;
 
-      // Enable drawing mode
-      canvas.isDrawingMode = true;
-
-      let isDrawing = false; // Track if the user is currently drawing
-
-      // Event: Start drawing
       const handleMouseDown = () => {
         isDrawing = true;
-        console.log('Started drawing...');
+        pathPointsRef.current = [];
+        lastSentPointsRef.current = null;
       };
 
-      // Event: Log drawing data on each mouse move
-      const handleMouseMove = () => {
-        if (isDrawing) {
-          const brush = fabricRef.current.freeDrawingBrush;
-          if (brush && brush._points && brush._points.length > 0) {
-            const pathData = {
-              points: brush._points.map(({ x, y }) => ({ x, y })), // Extract brush points
-              strokeWidth: brush.width,
-              stroke: brush.color,
-            };
-            console.log('Drawing Points During Drag:', pathData);
-            sendDrawing(room, pathData); // Send the in-progress points data
-          }
-        }
+      const handleMouseMove = (event) => {
+        if (!isDrawing) return;
+
+        const pointer = canvas.getPointer(event.e);
+        pathPointsRef.current.push(pointer);
+
+        // Send points immediately with each move
+        const pathData = {
+          t: 'd',
+          points: pathPointsRef.current,
+          stroke: canvas.freeDrawingBrush.color,
+          strokeWidth: canvas.freeDrawingBrush.width
+        };
+
+        sendThrottledDrawing(room, convertToBinary(pathData));
       };
 
-
-      // Event: Stop drawing
       const handleMouseUp = () => {
-        if (isDrawing) {
-          isDrawing = false;
-          const finalDrawingData = canvas.toJSON();
-          console.log('Finished drawing. Final data:', finalDrawingData);
+        if (!isDrawing) return;
+        isDrawing = false;
+
+        // Send final path data
+        if (pathPointsRef.current.length > 0) {
+          const pathData = {
+            t: 'd',
+            points: pathPointsRef.current,
+            stroke: canvas.freeDrawingBrush.color,
+            strokeWidth: canvas.freeDrawingBrush.width
+          };
+
+          sendThrottledDrawing(room, convertToBinary(pathData));
         }
+
+        pathPointsRef.current = [];
       };
 
-      // Attach event listeners
+
       canvas.on('mouse:down', handleMouseDown);
       canvas.on('mouse:move', handleMouseMove);
       canvas.on('mouse:up', handleMouseUp);
 
-      // Cleanup event listeners
       return () => {
         canvas.off('mouse:down', handleMouseDown);
         canvas.off('mouse:move', handleMouseMove);
         canvas.off('mouse:up', handleMouseUp);
+        if (batchTimeoutRef.current) {
+          clearTimeout(batchTimeoutRef.current);
+        }
       };
     }
   }, [isEnabled, room, currentTool]);
 
+  // Handle cursor updates
   useEffect(() => {
     if (fabricRef.current && room) {
       const canvas = fabricRef.current;
+      const cursors = new Map();
 
       const handleMouseMove = (event) => {
-        const pointer = canvas.getPointer(event.e); // Get cursor position
-        const cursorData = {
-          x: pointer.x,
-          y: pointer.y,
-          name: "Prasoon",
-          color: "#FF0000",
-        };
-        sendCursor(room, cursorData); // Emit cursor data to the server
+        if (cursorUpdateTimeoutRef.current) {
+          clearTimeout(cursorUpdateTimeoutRef.current);
+        }
+
+        cursorUpdateTimeoutRef.current = setTimeout(() => {
+          const pointer = canvas.getPointer(event.e);
+          const cursorData = {
+            t: 'c', // type: cursor
+            x: Math.round(pointer.x * 100) / 100,
+            y: Math.round(pointer.y * 100) / 100,
+            n: "Prasoon",
+            c: "#FF0000"
+          };
+
+          // Convert to binary before sending
+          const binaryCursorData = convertToBinary(cursorData);
+          if (binaryCursorData) {
+            sendThrottledCursor(binaryCursorData);
+          }
+        });
       };
 
       canvas.on('mouse:move', handleMouseMove);
 
+      // Handle incoming cursor updates
+      onCursor((data) => {
+        if (!fabricRef.current || !room || !data) return;
+
+        requestAnimationFrame(() => {
+          let decodedData;
+          try {
+            // Only decode if it's binary data
+            if (data instanceof Uint8Array || data instanceof Buffer || data instanceof ArrayBuffer) {
+              decodedData = convertFromBinary(data);
+            } else {
+              decodedData = data;
+            }
+
+            if (!decodedData || !decodedData.n) return;
+
+            const userId = decodedData.n;
+
+            // Remove existing cursor
+            if (cursors.has(userId)) {
+              canvas.remove(cursors.get(userId));
+              cursors.delete(userId);
+            }
+
+            // Create cursor group
+            const cursorGroup = new fabric.Group([
+              new fabric.Circle({
+                left: decodedData.x,
+                top: decodedData.y,
+                radius: 5,
+                fill: decodedData.c || 'blue',
+                selectable: false,
+                evented: false,
+              }),
+              new fabric.Text(decodedData.n, {
+                left: decodedData.x,
+                top: decodedData.y - 20,
+                fontSize: 14,
+                fill: 'black',
+                selectable: false,
+                evented: false,
+              })
+            ], {
+              selectable: false,
+              evented: false,
+            });
+
+            // Store and add new cursor
+            cursors.set(userId, cursorGroup);
+            canvas.add(cursorGroup);
+            canvas.renderAll();
+          } catch (error) {
+            console.error('Error processing cursor update:', error);
+          }
+        });
+      });
+
       return () => {
-        canvas.off('mouse:move', handleMouseMove); // Cleanup listener
+        canvas.off('mouse:move', handleMouseMove);
+        if (cursorUpdateTimeoutRef.current) {
+          clearTimeout(cursorUpdateTimeoutRef.current);
+        }
+        offCursor();
+        cursors.clear();
       };
     }
   }, [isEnabled, room]);
-
-  useEffect(() => {
-    onCursor((data) => {
-      console.log("Received Cursor Data:", data);
-
-      if (fabricRef.current && room) {
-        const canvas = fabricRef.current;
-
-        // Remove existing cursor for the user
-        const existingCursor = canvas.getObjects().find(obj => obj.id === `cursor_${data.data.name}`);
-        if (existingCursor) {
-          canvas.remove(existingCursor);
-        }
-
-        // Create a new circle to represent the cursor
-        const cursorCircle = new fabric.Circle({
-          left: data.data.x,
-          top: data.data.y,
-          radius: 5,
-          fill: data.data.color || 'blue',
-          selectable: false,
-          evented: false,
-          id: `cursor_${data.data.name}`,
-        });
-
-        // Add text (user name) above the cursor
-        const cursorText = new fabric.Text(data.data.name, {
-          left: data.data.x,
-          top: data.data.y - 20,
-          fontSize: 14,
-          fill: 'black',
-          selectable: false,
-          evented: false,
-          id: `text_${data.data.name}`,
-        });
-
-        // Group the cursor and text together
-        const cursorGroup = new fabric.Group([cursorCircle, cursorText], {
-          selectable: false,
-          evented: false,
-          id: `cursor_${data.data.name}`, // Unique identifier for the group
-        });
-
-        // Add the cursor group to the canvas
-        canvas.add(cursorGroup);
-        canvas.renderAll();
-      }
-    });
-
-    return () => {
-      offCursor();
-    };
-  }, [room]);
 
 
 

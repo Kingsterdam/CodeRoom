@@ -174,7 +174,7 @@ const Editor = forwardRef(({
     };
 
     // Set timeout only when the code changes, and clear the previous timeout
-    timeout = setTimeout(saveCodeOnDelay, 2000); // Try saving after 2000ms of inactivity
+    timeout = setTimeout(saveCodeOnDelay, 500000); // Try saving after 2000ms of inactivity
 
     return () => clearTimeout(timeout);  // Clean up the timeout on every render or change
 

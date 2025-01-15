@@ -1,6 +1,32 @@
 import { io } from "socket.io-client";
+import msgpack from 'msgpack-lite';
 
 let socket;
+
+// Binary conversion utilities
+const convertToBinary = (data) => {
+    if (!data) return null;
+    try {
+      return msgpack.encode(data);
+    } catch (error) {
+      console.error('Error encoding binary data:', error);
+      return null;
+    }
+  };
+  
+  const convertFromBinary = (binaryData) => {
+    if (!binaryData) return null;
+    try {
+      // Handle ArrayBuffer conversion
+      if (binaryData instanceof ArrayBuffer) {
+        binaryData = new Uint8Array(binaryData);
+      }
+      return msgpack.decode(Buffer.from(binaryData));
+    } catch (error) {
+      console.error('Error decoding binary data:', error);
+      return null;
+    }
+  };
 
 /**
  * Connects to the Socket.IO server and initializes the connection.
@@ -163,19 +189,37 @@ export const sendCodeUpdate = (room, code) => {
     }
 };
 
+// Modified drawing update functions
 export const sendDrawing = (room, data) => {
     const socket = getSocket();
-    if (room && data) {
+    if (!socket || !room || !data) {
+        console.error("Missing required parameters for sending drawing update");
+        return;
+    }
+
+    try {
         socket.emit("drawingUpdate", { room, data });
-        console.log(`Code update sent to room ${room}.`);
-    } else {
-        console.error("Room and drawing are required to send updates.");
+    } catch (error) {
+        console.error("Error sending drawing data:", error);
     }
 };
 
+
 export const onDrawing = (callback) => {
     const socket = getSocket();
-    socket.on("drawingUpdate", callback);
+    if (!socket) return;
+
+    socket.on("drawingUpdate", ({ data }) => {
+        try {
+            const decodedData = convertFromBinary(data);
+            console.log("SOCKET_CON: Received drawing update:", decodedData);
+
+            callback(data);
+            
+        } catch (error) {
+            console.error('Error handling drawing update:', error);
+        }
+    });
 };
 
 export const offDrawing = () => {
@@ -183,20 +227,33 @@ export const offDrawing = () => {
     socket.off("drawingUpdate");
 };
 
-export const sendCursor = (room, data) => {
+// Send cursor updates
+export const sendCursor = (room, binaryData) => {
     const socket = getSocket();
-    if (room && data) {
-        socket.emit("cursorUpdate", { room, data });
-        console.log(`Cursor update sent to room ${room}.`);
-    } else {
-        console.error("Room and cursor are required to send updates.");
+    if (!socket || !room || !binaryData) {
+        console.error("Missing required parameters for sending cursor update");
+        return;
+    }
+
+    try {
+        socket.emit("cursorUpdate", { room, data: binaryData });
+    } catch (error) {
+        console.error("Error sending cursor data:", error);
     }
 };
 
+// Receive cursor updates
 export const onCursor = (callback) => {
     const socket = getSocket();
-    socket.on("cursorUpdate", callback);
+    if (!socket) return;
+
+    socket.on("cursorUpdate", ({ data }) => {
+        if (!data) return;
+
+        callback(data);
+    });
 };
+
 
 export const offCursor = () => {
     const socket = getSocket();
