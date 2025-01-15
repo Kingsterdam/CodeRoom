@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { useRoomContext } from '@/context/RoomContext';
 import { connectSocket, offCursor, offDrawing, onCursor, onDrawing, sendCursor, sendDrawing } from '@/utils/socketCon';
+import { throttle } from 'lodash';
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -30,6 +31,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const [showLaser, setShowLaser] = useState(false);
   const [laserPosition, setLaserPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState('');
+
   const { room } = useRoomContext();
   const colors = [
     { hex: '#FF0000', name: 'Red' },
@@ -41,6 +43,43 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     { hex: '#000000', name: 'Black' },
     { hex: '#FFFFFF', name: 'White' },
   ];
+
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      fabricRef.current.renderOnAddRemove = false; // Disable automatic rendering
+      fabricRef.current.skipTargetFind = true; // Disable object targeting
+      fabricRef.current.selection = false; // Disable selection
+    }
+  }, []);
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      const canvas = fabricRef.current;
+
+      // Optimize canvas settings
+      canvas.renderOnAddRemove = false;
+      canvas.skipTargetFind = true;
+      canvas.selection = false;
+
+      // Improve line quality
+      canvas.freeDrawingBrush.strokeLineCap = 'round';
+      canvas.freeDrawingBrush.strokeLineJoin = 'round';
+      canvas.freeDrawingBrush.strokeMiterLimit = 10;
+
+      // Enable better smoothing
+      if (canvas.contextTop) {
+        canvas.contextTop.imageSmoothingEnabled = true;
+        canvas.contextTop.imageSmoothingQuality = 'high';
+      }
+    }
+  }, []);
+
+  const throttledSendDrawing = useRef(
+    throttle((room, data) => {
+      sendDrawing(room, data);
+    }, 16) // Reduced to 16ms (approximately 60fps) for smoother drawing
+  ).current;
 
   useEffect(() => {
     if (!containerRef.current || fabricRef.current) return;
@@ -121,43 +160,72 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   useEffect(() => {
     connectSocket();
 
-    onDrawing((data) => {
-      console.log("Received Drawing Data:", data);
+    const pathMap = new Map(); // Store ongoing paths
 
-      if (fabricRef.current && data.data.points) {
-        const canvas = fabricRef.current;
+    const handleDrawing = (data) => {
+      if (!fabricRef.current) return;
+      const canvas = fabricRef.current;
 
-        const pathString = data.data.points
-          .map(({ x, y }, index) => (index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
-          .join(' ');
+      requestAnimationFrame(() => {
+        if (data.data.points && data.data.type === 'drawing') {
+          const points = data.data.points;
 
-        const path = new fabric.Path(pathString, {
-          stroke: data.data.stroke || 'black',
-          strokeWidth: data.data.strokeWidth || 1,
-          fill: null,
-          selectable: false,
-          evented: false,
-        });
+          if (points.length < 2) return;
 
-        canvas.add(path);
-        canvas.renderAll();
-        console.log('Rendered Path:', path);
-      } else if (fabricRef.current && data.data.objects) {
-        fabricRef.current.loadFromJSON(data.data, () => {
-          fabricRef.current.renderAll(); // Render the updated canvas
-        });
-      }
-      else if (fabricRef.current && !data.data.objects && !data.data.points) {
-        fabricRef.current.clear();
-        console.log("Cleared drawing")
-      }
-      else {
-        console.error("Invalid drawing data received:", data);
-      }
-    });
+          // Create smooth path between points
+          let pathString = `M ${points[0].x} ${points[0].y}`;
+
+          for (let i = 1; i < points.length; i++) {
+            // Use quadratic curves for smoother lines
+            if (i < points.length - 1) {
+              const xc = (points[i].x + points[i + 1].x) / 2;
+              const yc = (points[i].y + points[i + 1].y) / 2;
+              pathString += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+            } else {
+              pathString += ` L ${points[i].x} ${points[i].y}`;
+            }
+          }
+
+          // Remove existing path if it's an ongoing drawing
+          if (pathMap.has(data.sender)) {
+            canvas.remove(pathMap.get(data.sender));
+          }
+
+          const path = new fabric.Path(pathString, {
+            stroke: data.data.stroke || 'black',
+            strokeWidth: data.data.strokeWidth || 1,
+            fill: null,
+            selectable: false,
+            evented: false,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round'
+          });
+
+          canvas.add(path);
+
+          if (!data.data.isComplete) {
+            pathMap.set(data.sender, path);
+          } else {
+            pathMap.delete(data.sender);
+          }
+
+          canvas.renderAll();
+        } else if (data.data.objects) {
+          canvas.loadFromJSON(data.data, () => {
+            canvas.renderAll();
+          });
+        } else if (!data.data.objects && !data.data.points) {
+          canvas.clear();
+          pathMap.clear();
+        }
+      });
+    };
+
+    onDrawing(handleDrawing);
 
     return () => {
       offDrawing();
+      pathMap.clear();
     };
   }, []);
 
@@ -257,52 +325,62 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
   useEffect(() => {
     if (fabricRef.current && room && currentTool === "pencil") {
-      console.log("current tool is ", currentTool)
       const canvas = fabricRef.current;
-
-      // Enable drawing mode
       canvas.isDrawingMode = true;
+      let isDrawing = false;
+      let currentPath = [];
 
-      let isDrawing = false; // Track if the user is currently drawing
-
-      // Event: Start drawing
-      const handleMouseDown = () => {
+      const handleMouseDown = (event) => {
         isDrawing = true;
-        console.log('Started drawing...');
+        currentPath = [];
+        const pointer = canvas.getPointer(event.e);
+        currentPath.push({ x: pointer.x, y: pointer.y });
       };
 
-      // Event: Log drawing data on each mouse move
-      const handleMouseMove = () => {
-        if (isDrawing) {
-          const brush = fabricRef.current.freeDrawingBrush;
-          if (brush && brush._points && brush._points.length > 0) {
-            const pathData = {
-              points: brush._points.map(({ x, y }) => ({ x, y })), // Extract brush points
-              strokeWidth: brush.width,
-              stroke: brush.color,
-            };
-            console.log('Drawing Points During Drag:', pathData);
-            sendDrawing(room, pathData); // Send the in-progress points data
-          }
+      const handleMouseMove = (event) => {
+        if (!isDrawing) return;
+
+        const brush = fabricRef.current.freeDrawingBrush;
+        if (brush && brush._points) {
+          const pointer = canvas.getPointer(event.e);
+          currentPath.push({ x: pointer.x, y: pointer.y });
+
+          // Send the complete path so far
+          const pathData = {
+            points: currentPath,
+            strokeWidth: brush.width,
+            stroke: brush.color,
+            type: 'drawing',
+            isComplete: false
+          };
+
+          throttledSendDrawing(room, pathData);
         }
       };
 
-
-      // Event: Stop drawing
       const handleMouseUp = () => {
-        if (isDrawing) {
-          isDrawing = false;
-          const finalDrawingData = canvas.toJSON();
-          console.log('Finished drawing. Final data:', finalDrawingData);
-        }
+        if (!isDrawing) return;
+
+        isDrawing = false;
+        const brush = fabricRef.current.freeDrawingBrush;
+
+        // Send final complete path
+        const pathData = {
+          points: currentPath,
+          strokeWidth: brush.width,
+          stroke: brush.color,
+          type: 'drawing',
+          isComplete: true
+        };
+
+        sendDrawing(room, pathData); // Send immediately without throttling
+        currentPath = [];
       };
 
-      // Attach event listeners
       canvas.on('mouse:down', handleMouseDown);
       canvas.on('mouse:move', handleMouseMove);
       canvas.on('mouse:up', handleMouseUp);
 
-      // Cleanup event listeners
       return () => {
         canvas.off('mouse:down', handleMouseDown);
         canvas.off('mouse:move', handleMouseMove);
@@ -315,21 +393,26 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     if (fabricRef.current && room) {
       const canvas = fabricRef.current;
 
+      const throttledSendCursor = throttle((cursorData) => {
+        sendCursor(room, cursorData);
+      }, 50); // 50ms throttle time
+
       const handleMouseMove = (event) => {
-        const pointer = canvas.getPointer(event.e); // Get cursor position
+        const pointer = canvas.getPointer(event.e);
         const cursorData = {
           x: pointer.x,
           y: pointer.y,
           name: "Prasoon",
           color: "#FF0000",
         };
-        sendCursor(room, cursorData); // Emit cursor data to the server
+        throttledSendCursor(cursorData);
       };
 
       canvas.on('mouse:move', handleMouseMove);
 
       return () => {
-        canvas.off('mouse:move', handleMouseMove); // Cleanup listener
+        canvas.off('mouse:move', handleMouseMove);
+        throttledSendCursor.cancel();
       };
     }
   }, [isEnabled, room]);
