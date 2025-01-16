@@ -484,68 +484,79 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
           }}
         />
       )}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-1 z-[150] max-w-full px-2">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[150] w-[95%] md:w-auto">
         {isEnabled && (
-          <div className="flex flex-wrap items-center justify-center gap-4 bg-gray-800/90 backdrop-blur-sm p-2 rounded-lg shadow-lg">
-            {/* Tools */}
-            <div className="flex flex-wrap gap-2 border-r border-gray-600 pr-4">
-              <button
-                className={`p-2 rounded-lg transition-all ${currentTool === 'pencil'
-                  ? 'bg-gray-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  } md:p-1 lg:p-1.5`}
-                onClick={() => changeTool('pencil')}
-                title="Draw"
-              >
-                <PencilIcon className="w-4 h-4 sm:w-3 sm:h-3 lg:w-5 lg:h-5" />
-              </button>
-              <button
-                className={`p-2 rounded-lg transition-all ${currentTool === 'laser'
-                  ? 'bg-gray-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  } md:p-1 lg:p-1.5`}
-                onClick={() => changeTool('laser')}
-                title="Laser Pointer"
-              >
-                <LaserIcon className="w-4 h-4 sm:w-3 sm:h-3 lg:w-5 lg:h-5" />
-              </button>
-            </div>
-
-            {/* Brush Size */}
-            <div className="flex flex-wrap items-center gap-2 border-r border-gray-600 pr-4">
-              <input
-                type="range"
-                min="1"
-                max="20"
-                value={brushSize}
-                onChange={(e) => changeBrushSize(Number(e.target.value))}
-                className="w-24 accent-white sm:w-20 md:w-16 lg:w-24"
-                title="Brush Size"
-              />
-              <span className="text-white text-sm md:text-xs lg:text-sm min-w-[2rem]">{brushSize}px</span>
-            </div>
-
-            {/* Colors */}
-            <div className="flex flex-wrap gap-1">
-              {colors.map(({ hex, name }) => (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 bg-gray-800/90 backdrop-blur-sm p-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg border border-gray-700">
+            {/* First Row for Mobile / Left Section for Desktop */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+              {/* Tools Section */}
+              <div className="flex gap-1 sm:gap-2 border-r border-gray-600 pr-2 sm:pr-3">
                 <button
-                  key={hex}
-                  className={`w-8 h-8 sm:w-6 sm:h-6 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-lg transition-all hover:scale-110 ${currentColor === hex ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-800' : ''
-                    }`}
-                  style={{ backgroundColor: hex }}
-                  onClick={() => changeColor(hex)}
-                  title={name}
+                  className={`transition-colors ${currentTool === 'pencil'
+                      ? 'bg-gray-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } rounded p-1 sm:p-1.5`}
+                  onClick={() => changeTool('pencil')}
+                  title="Draw"
+                >
+                  <PencilIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                </button>
+                <button
+                  className={`transition-colors ${currentTool === 'laser'
+                      ? 'bg-gray-600 text-white'
+                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } rounded p-1 sm:p-1.5`}
+                  onClick={() => changeTool('laser')}
+                  title="Laser Pointer"
+                >
+                  <LaserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                </button>
+              </div>
+
+              {/* Brush Size Section */}
+              <div className="flex items-center gap-1 sm:gap-2 border-r border-gray-600 pr-2 sm:pr-3">
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={brushSize}
+                  onChange={(e) => changeBrushSize(Number(e.target.value))}
+                  className="w-16 sm:w-20 lg:w-24 accent-white"
+                  title="Brush Size"
                 />
-              ))}
+                <span className="text-white text-xs sm:text-sm min-w-[1.75rem] sm:min-w-[2rem]">
+                  {brushSize}px
+                </span>
+              </div>
             </div>
 
-            {/* Clear Button */}
-            <button
-              className="ml-4 px-4 py-2 sm:px-3 sm:py-1 md:px-2 md:py-1 lg:px-3 lg:py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              onClick={clear}
-            >
-              Clear
-            </button>
+            {/* Second Row for Mobile / Right Section for Desktop */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+              {/* Colors Section */}
+              <div className="flex gap-0.5 sm:gap-1">
+                {colors.map(({ hex, name }) => (
+                  <button
+                    key={hex}
+                    className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded transition-colors ${currentColor === hex
+                        ? 'ring-1 sm:ring-2 ring-white ring-offset-1 ring-offset-gray-800'
+                        : ''
+                      }`}
+                    style={{ backgroundColor: hex }}
+                    onClick={() => changeColor(hex)}
+                    title={name}
+                  />
+                ))}
+              </div>
+
+              {/* Clear Button */}
+              <button
+                className="ml-1 sm:ml-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white text-xs sm:text-sm
+                       rounded hover:bg-red-600 transition-colors"
+                onClick={clear}
+              >
+                Clear
+              </button>
+            </div>
           </div>
         )}
       </div>
