@@ -360,6 +360,7 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
         audioLevel,
         connectedPeers,
         handleToggleMute,
+        setAudioLevel,
         userInteracted
     };
 };

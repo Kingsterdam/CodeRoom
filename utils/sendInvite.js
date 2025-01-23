@@ -1,24 +1,22 @@
 const API_URL = "http://localhost:9090/send-invite"; // Use `http` for local development
 
+// Frontend code modifications
 export const sendInviteCode = async (email, url, room) => {
-  try {
-    const response = await fetch(API_URL, {
+  const response = await fetch(API_URL, {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json',
+          'Content-Type': 'application/json',
       },
-      body: JSON.stringify({ email, url, room}),
-    });
-
-    const data = await response.json();
-    
-    if (response.ok) {
-      return data.message;
-    } else {
-      return data.error || "An error occurred while sending the invite.";
-    }
-  } catch (error) {
-    console.error("Error executing code:", error);
-    return "An unexpected error occurred.";
+      body: JSON.stringify({ email, url, room })
+  });
+  
+  // Parse the JSON response
+  const data = await response.json();
+  
+  // If the response wasn't ok, throw an error with the response data
+  if (!response.ok) {
+      throw new Error(data.error || 'Failed to send invite');
   }
+  
+  return data;
 };

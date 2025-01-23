@@ -10,7 +10,84 @@ import ErrorBoundary from '../components/ErrorBoundry';
 import AuthButtons from '@/components/authButtons';
 import { offEditorUpdate, onEditorUpdate, sendEditorUpdate, sendLanguageUpdate } from '@/utils/socketCon';
 import { useRoomContext } from "../context/RoomContext";
-import { Smartphone, Code } from 'lucide-react';
+import { Smartphone, Code, GripVertical } from 'lucide-react';
+
+const Resizer = ({ onResize }) => {
+  const [isResizing, setIsResizing] = useState(false);
+
+  useEffect(() => {
+    const preventSelection = (e) => {
+      e.preventDefault();
+      return false;
+    };
+
+    const handleMouseMove = (e) => {
+      if (!isResizing) return;
+      
+      // Prevent text selection
+      e.preventDefault();
+      
+      const containerWidth = window.innerWidth;
+      const newWidth = (e.clientX / containerWidth) * 100;
+
+      if (newWidth >= 30 && newWidth <= 85) {
+        requestAnimationFrame(() => {
+          onResize(newWidth);
+        });
+      }
+    };
+
+    const handleMouseUp = () => {
+      setIsResizing(false);
+      document.removeEventListener('selectstart', preventSelection);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+
+    if (isResizing) {
+      document.addEventListener('selectstart', preventSelection);
+      document.addEventListener('mousemove', handleMouseMove);
+      document.addEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'col-resize';
+      document.body.style.userSelect = 'none';
+    }
+
+    return () => {
+      document.removeEventListener('selectstart', preventSelection);
+      document.removeEventListener('mousemove', handleMouseMove);
+      document.removeEventListener('mouseup', handleMouseUp);
+      document.body.style.cursor = 'default';
+      document.body.style.userSelect = 'auto';
+    };
+  }, [isResizing, onResize]);
+
+  const handleMouseDown = (e) => {
+    e.preventDefault();
+    setIsResizing(true);
+  };
+
+  return (
+    <div className="relative w-0 cursor-col-resize hover:bg-transparent select-none">
+      {/* Invisible hit area */}
+      <div className="absolute inset-0 w-full h-full" />
+      
+      {/* Drag handle */}
+      <div 
+        className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 py-6 rounded-lg hover:bg-blue-500/20 active:bg-blue-500/40 transition-colors select-none"
+        onMouseDown={handleMouseDown}
+        style={{ 
+          touchAction: 'none',  // Prevents touch handling
+          WebkitTapHighlightColor: 'transparent' // Removes tap highlight on mobile
+        }}
+      >
+        <GripVertical 
+          size={20} 
+          className="text-gray-400 dark:text-gray-500"
+        />
+      </div>
+    </div>
+  );
+};
 
 function App() {
   const [editors, setEditors] = useState([{
@@ -29,6 +106,30 @@ function App() {
   const room = useRoomContext()
   const [activeView, setActiveView] = useState('editor'); // 'editor' or 'chat'
   const [isLargeScreen, setIsLargeScreen] = useState(() => window.innerWidth >= 1024);
+  const [editorWidth, setEditorWidth] = useState(75); // Initial width percentage
+
+  // Handle screen resize
+  useEffect(() => {
+    const checkScreenSize = () => {
+      const newIsLargeScreen = window.innerWidth >= 1024;
+      setIsLargeScreen(newIsLargeScreen);
+      if (!newIsLargeScreen) {
+        setEditorWidth(100); // Reset to full width on small screens
+      } else {
+        setEditorWidth(75); // Reset to default width on large screens
+      }
+    };
+
+    checkScreenSize();
+    window.addEventListener('resize', checkScreenSize);
+    return () => window.removeEventListener('resize', checkScreenSize);
+  }, []);
+
+
+  const handleResize = (newWidth) => {
+    setEditorWidth(newWidth);
+  };
+
 
   // Handle screen resize
   useEffect(() => {
@@ -241,28 +342,30 @@ function App() {
 
 
   return (
-    <div className="transition-colors duration-500 dark:bg-gradient-to-br dark:from-gray-600 dark:via-gray-800 dark:to-gray-500 flex flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 scrollbar-track-gray-100 bg-gradient-to-br from-white via-orange-50 to-white">
-      {/* Changed to h-screen and added overflow-hidden */}
-      <header className="w-full px-2 sm:px-4 flex-shrink-0"> {/* Added flex-shrink-0 */}
+    <div className="transition-colors duration-500 dark:bg-gradient-to-br dark:from-[#0A0F1E] dark:via-slate-950 dark:to-gray-950 flex flex-col h-screen overflow-y-auto scrollbar-thin scrollbar-thumb-gray-300 dark:scrollbar-thumb-blue-400/20 scrollbar-track-gray-100 dark:scrollbar-track-gray-800/40 bg-gradient-to-br from-white via-orange-50 to-white">
+      <header className="w-full px-2 sm:px-4 flex-shrink-0">
         <ErrorBoundary>
           <Navbar />
         </ErrorBoundary>
       </header>
 
       <div className="flex flex-grow w-full p-2 sm:p-4 gap-2 lg:flex-row flex-col">
-        
-        <div className={`flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white dark:bg-opacity-80 dark:bg-black dark:border-none rounded-lg shadow-lg transition-opacity duration-300 ${
-          !isLargeScreen && activeView !== 'editor' ? 'hidden' : ''
+
+        <div className={`flex flex-col lg:w-3/4 w-full p-2 flex-grow border-t relative border bg-white dark:bg-[#111627] dark:border-[#2A3343] rounded-lg shadow-lg transition-opacity duration-300 ${!isLargeScreen && activeView !== 'editor' ? 'hidden' : ''
           }`}
-          style={{ height: 'calc(100vh - 100px)' }}>
-          {/* Tab Bar */}
-          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0"> {/* Added flex-shrink-0 */}
-            {/* Tabs Section */}
+          style={{
+            width: isLargeScreen ? `${editorWidth}%` : '100%',
+            height: 'calc(100vh - 80px)'
+          }}>
+
+          <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-2 mb-1 flex-shrink-0">
             <div className="flex flex-wrap gap-1 w-full sm:w-auto">
               {editors.map((editor) => (
                 <div key={editor.id} className="flex items-center justify-between gap-1">
                   <div
-                    className={`flex items-center space-x-1 text-xs sm:text-sm px-1 py-1 rounded-lg border cursor-pointer ${editor.id === activeEditorId ? 'bg-gray-200 text-black dark:bg-green-200' : 'bg-white'
+                    className={`flex items-center space-x-1 text-xs sm:text-sm px-2 py-1.5 rounded-lg border cursor-pointer transition-all duration-200 ${editor.id === activeEditorId
+                      ? 'bg-blue-500/10 text-blue-400 dark:border-blue-500/40 border-blue-200'
+                      : 'bg-white dark:bg-[#1B2134] dark:border-[#2A3343] dark:text-gray-300 hover:dark:bg-[#212842]'
                       }`}
                     onClick={() => handleEditorSwitch(editor.id)}
                   >
@@ -272,29 +375,28 @@ function App() {
                         e.stopPropagation();
                         removeEditor(editor.id);
                       }}
-                      className="text-black font-bold ml-1"
+                      className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 font-bold ml-1 transition-colors"
                       aria-label={`Remove editor ${editor.name}`}
                     >
-                      <img src='./cross.png' className='w-2 h-2 sm:w-3 sm:h-3 filter brightness-0' alt="Remove" />
+                      <img src='./cross.png' className='w-2 h-2 sm:w-3 sm:h-3 opacity-60 hover:opacity-100' alt="Remove" />
                     </button>
                   </div>
                 </div>
               ))}
               <button
                 onClick={addEditor}
-                className="p-1 sm:p-2 hover:bg-gray-200 hover:rounded-full"
+                className="p-1.5 sm:p-2 hover:bg-blue-500/10 dark:hover:bg-blue-500/10 rounded-lg transition-all duration-200"
                 aria-label="Add new editor"
               >
-                <img src='./plus.png' className="w-3 h-3 sm:w-4 sm:h-4 dark:filter dark:brightness-0 dark:invert dark:hover:invert-0" alt="Add tab" />
+                <img src='./plus.png' className="w-3 h-3 sm:w-4 sm:h-4 dark:filter dark:invert opacity-60 hover:opacity-100" alt="Add tab" />
               </button>
             </div>
 
-            {/* Language and Theme Selectors */}
             <div className="flex gap-2 text-xs sm:text-sm w-full sm:w-auto">
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.language}
                 onChange={(e) => handleLanguageChange(activeEditorId, e.target.value)}
-                className="bg-gray-100 dark:bg-green-200 text-black p-1 rounded-lg flex-1 sm:flex-none"
+                className="bg-white dark:bg-[#1B2134] dark:text-gray-200 dark:border-[#2A3343] p-1.5 rounded-lg flex-1 sm:flex-none transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="python">Python</option>
                 <option value="cpp">C++</option>
@@ -304,7 +406,7 @@ function App() {
               <select
                 value={editors.find(editor => editor.id === activeEditorId)?.theme}
                 onChange={(e) => handleThemeChange(activeEditorId, e.target.value)}
-                className="bg-gray-100 dark:bg-green-200 text-black p-1 rounded-lg flex-1 sm:flex-none"
+                className="bg-white dark:bg-[#1B2134] dark:text-gray-200 dark:border-[#2A3343] p-1.5 rounded-lg flex-1 sm:flex-none transition-colors focus:outline-none focus:ring-2 focus:ring-blue-500/20"
               >
                 <option value="vs-dark">Dark</option>
                 <option value="vs-light">Light</option>
@@ -313,13 +415,12 @@ function App() {
             </div>
           </div>
 
-          {/* Editor Section */}
           {editors.map(
             (editor) =>
               editor.id === activeEditorId && (
                 <div key={editor.id} className="relative w-full h-full flex flex-col">
-                  <div className="absolute top-0 left-0 flex sm:flex-row items-start sm:items-center justify-between w-full bg-gray-950 dark:bg-opacity-40  text-white p-2 rounded-t-lg">
-                    <span className="text-xs sm:text-sm font-bold mb-2 sm:mb-0">{editor.name}</span>
+                  <div className="absolute top-0 left-0 flex sm:flex-row items-start sm:items-center justify-between w-full bg-[#1E293B] dark:bg-[#1B2134] text-white p-2 rounded-t-lg">
+                    <span className="text-xs sm:text-sm font-medium opacity-90 mb-2 sm:mb-0">{editor.name}</span>
                     <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto justify-end">
                       <button
                         className="cursor-pointer flex items-center gap-1 sm:gap-2 px-2 py-1 rounded-lg text-white text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 shadow-lg hover:from-indigo-600 hover:via-purple-700 hover:to-pink-600"
@@ -330,30 +431,30 @@ function App() {
                       </button>
 
                       <button
-                        className='cursor-pointer'
+                        className='cursor-pointer transition-transform duration-200 hover:scale-110'
                         onClick={handleSnapshot}
                         title="Take Snapshot"
                       >
                         <img
                           src='./camera.png'
                           alt='Copy'
-                          className='w-4 h-4 sm:w-6 sm:h-6 filter brightness-0 invert'
+                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
                         />
                       </button>
 
                       <div className="relative">
                         <button
-                          className='cursor-pointer'
+                          className='cursor-pointer transition-transform duration-200 hover:scale-110'
                           onClick={handleCopy}
                           title="Copy code"
                         >
                           <img
                             src='./copy.png'
                             alt='Copy'
-                            className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert'
+                            className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
                           />
                           {copyStatus && (
-                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs bg-gray-900 text-white px-2 py-1 rounded whitespace-nowrap">
+                            <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs bg-[#1B2134] text-white px-2 py-1 rounded whitespace-nowrap">
                               {copyStatus}
                             </span>
                           )}
@@ -361,20 +462,20 @@ function App() {
                       </div>
 
                       <button
-                        className='cursor-pointer'
+                        className='cursor-pointer transition-transform duration-200 hover:scale-110'
                         onClick={() => fileDownload(editor.name)}
                         title="Download file"
                       >
                         <img
                           src='./direct-download.png'
                           alt='Download'
-                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert'
+                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
                         />
                       </button>
                     </div>
                   </div>
 
-                  <div className="flex-grow mt-10 sm:mt-10 overflow-hidden"> {/* Added overflow-hidden */}
+                  <div className="flex-grow mt-10 sm:mt-10 overflow-hidden">
                     <ErrorBoundary>
                       <Editor
                         key={editor.id}
@@ -395,51 +496,42 @@ function App() {
           )}
         </div>
 
-        {/* Chat Section */}
-        <div className={`lg:flex flex-col lg:w-1/4 w-full bg-white dark:bg-opacity-70 dark:bg-black dark:border-none dark:text-white rounded-lg shadow-lg py-4 px-2 border transition-opacity duration-300 ${
-            !isLargeScreen && activeView !== 'chat' ? 'hidden' : ''
+        {isLargeScreen && <Resizer onResize={handleResize} />}
+        <div className={`lg:flex flex-col lg:w-1/4 w-full bg-white dark:bg-[#111627] dark:border-[#2A3343] dark:text-white rounded-lg shadow-lg py-4 px-2 border transition-opacity duration-300 ${!isLargeScreen && activeView !== 'chat' ? 'hidden' : ''
           }`}
-          style={{ height: 'calc(100vh - 100px)' }}> {/* Modified flex-grow to h-full and added overflow-hidden */}
+          style={{
+            width: isLargeScreen ? `${100 - editorWidth - 1}%` : '100%',
+            height: 'calc(100vh - 80px)'
+          }}>
           <ErrorBoundary>
             <Chat />
           </ErrorBoundary>
         </div>
 
-        {/* Mobile Navigation Footer */}
         {!isLargeScreen && (
-        <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-black dark:bg-opacity-90 border-t dark:border-gray-700 flex justify-around items-center h-16 px-4">
-          <button
-            onClick={() => setActiveView('editor')}
-            className={`flex flex-col items-center justify-center w-1/2 py-2 ${activeView === 'editor' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
-          >
-            <Code size={24} />
-            <span className="text-xs mt-1">Editor</span>
-          </button>
-          <button
-            onClick={() => setActiveView('chat')}
-            className={`flex flex-col items-center justify-center w-1/2 py-2 ${activeView === 'chat' ? 'text-blue-500 dark:text-blue-400' : 'text-gray-500 dark:text-gray-400'}`}
-          >
-            <Smartphone size={24} />
-            <span className="text-xs mt-1">Chat</span>
-          </button>
-        </div>
-        )}
-
-        {/* <button
-          className="lg:hidden bg-white text-black rounded-lg p-2 w-full mt-4 text-sm font-medium hover:bg-gray-50 transition-colors flex-shrink-0"
-          onClick={() => setShowChat(!showChat)}
-        >
-          {showChat ? "Hide Chat" : "Show Chat"}
-        </button> */}
-
-        {/* Mobile Chat View */}
-        {/* {showChat && (
-          <div className="flex lg:hidden flex-col w-full h-[600px] sm:h-[400px] bg-white sm:overflow-auto dark:bg-opacity-60 dark:bg-black rounded-lg shadow-lg p-4">
-            <ErrorBoundary>
-              <Chat />
-            </ErrorBoundary>
+          <div className="lg:hidden fixed bottom-0 left-0 right-0 bg-white dark:bg-[#111627] border-t dark:border-[#2A3343] flex justify-around items-center h-16 px-4 shadow-lg">
+            <button
+              onClick={() => setActiveView('editor')}
+              className={`flex flex-col items-center justify-center w-1/2 py-2 transition-colors ${activeView === 'editor'
+                  ? 'text-blue-500 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
+                }`}
+            >
+              <Code size={24} />
+              <span className="text-xs mt-1">Editor</span>
+            </button>
+            <button
+              onClick={() => setActiveView('chat')}
+              className={`flex flex-col items-center justify-center w-1/2 py-2 transition-colors ${activeView === 'chat'
+                  ? 'text-blue-500 dark:text-blue-400'
+                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
+                }`}
+            >
+              <Smartphone size={24} />
+              <span className="text-xs mt-1">Chat</span>
+            </button>
           </div>
-        )} */}
+        )}
 
         <div className="lg:hidden h-16" />
       </div>
