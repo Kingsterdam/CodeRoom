@@ -110,7 +110,14 @@ export const joinRoom = (room, message) => {
         console.error("Room name is required to join a room.");
     }
 };
-
+export const onJoinRoom = (callback) => {
+    const socket = getSocket();
+    socket.on("joinRoom", callback);
+}
+export const offJoinRoom = (callback) => {
+    const socket = getSocket();
+    socket.off("joinRoom");
+}
 /**
  * Leaves a specified room on the server.
  * @param {string} room - The name of the room to leave.
@@ -203,6 +210,25 @@ export const offCursor = () => {
     socket.off("cursorUpdate");
 };
 
+export const sendMute = (room, data) => {
+    const socket = getSocket();
+    if (room && data) {
+        socket.emit("muteUpdate", { room, data });
+        console.log(`Mute update sent to room ${room}.`);
+    } else {
+        console.error("Room and cursor are required to send updates.");
+    }
+};
+
+export const onMute = (callback) => {
+    const socket = getSocket();
+    socket.on("muteUpdate", callback);
+};
+
+export const offMute = (callback) => {
+    const socket = getSocket();
+    socket.off("muteUpdate");
+}
 
 /**
  * Listens for incoming messages from the server.

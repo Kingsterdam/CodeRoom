@@ -2,6 +2,31 @@ import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { useRoomContext } from '@/context/RoomContext';
 import { connectSocket, offCursor, offDrawing, onCursor, onDrawing, sendCursor, sendDrawing } from '@/utils/socketCon';
+import msgpack from 'msgpack-lite';
+import { displayName } from '@/utils/googleAuth';
+const convertToBinary = (data) => {
+  if (!data) return null;
+  try {
+    return msgpack.encode(data);
+  } catch (error) {
+    console.error('Error encoding binary data:', error);
+    return null;
+  }
+};
+
+const convertFromBinary = (binaryData) => {
+  if (!binaryData) return null;
+  try {
+    // Handle ArrayBuffer conversion
+    if (binaryData instanceof ArrayBuffer) {
+      binaryData = new Uint8Array(binaryData);
+    }
+    return msgpack.decode(Buffer.from(binaryData));
+  } catch (error) {
+    console.error('Error decoding binary data:', error);
+    return null;
+  }
+};
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -123,17 +148,18 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
     onDrawing((data) => {
       console.log("Received Drawing Data:", data);
-
-      if (fabricRef.current && data.data.points) {
+      const fromBinary = convertFromBinary(data.data)
+      console.log("converted from binary: ", fromBinary)
+      if (fabricRef.current && fromBinary.points) {
         const canvas = fabricRef.current;
 
-        const pathString = data.data.points
+        const pathString = fromBinary.points
           .map(({ x, y }, index) => (index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
           .join(' ');
 
         const path = new fabric.Path(pathString, {
-          stroke: data.data.stroke || 'black',
-          strokeWidth: data.data.strokeWidth || 1,
+          stroke: fromBinary.stroke || 'black',
+          strokeWidth: fromBinary.strokeWidth || 1,
           fill: null,
           selectable: false,
           evented: false,
@@ -142,12 +168,12 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
         canvas.add(path);
         canvas.renderAll();
         console.log('Rendered Path:', path);
-      } else if (fabricRef.current && data.data.objects) {
-        fabricRef.current.loadFromJSON(data.data, () => {
+      } else if (fabricRef.current && fromBinary.objects) {
+        fabricRef.current.loadFromJSON(fromBinary, () => {
           fabricRef.current.renderAll(); // Render the updated canvas
         });
       }
-      else if (fabricRef.current && !data.data.objects && !data.data.points) {
+      else if (fabricRef.current && !fromBinary.objects && !fromBinary.points) {
         fabricRef.current.clear();
         console.log("Cleared drawing")
       }
@@ -282,7 +308,9 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
               stroke: brush.color,
             };
             console.log('Drawing Points During Drag:', pathData);
-            sendDrawing(room, pathData); // Send the in-progress points data
+            const binary = convertToBinary(pathData)
+            console.log("Binary: ", binary)
+            sendDrawing(room, binary); // Send the in-progress points data
           }
         }
       };
@@ -317,10 +345,11 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
       const handleMouseMove = (event) => {
         const pointer = canvas.getPointer(event.e); // Get cursor position
+        const name = displayName
         const cursorData = {
           x: pointer.x,
           y: pointer.y,
-          name: "Prasoon",
+          name: name,
           color: "#FF0000",
         };
         sendCursor(room, cursorData); // Emit cursor data to the server

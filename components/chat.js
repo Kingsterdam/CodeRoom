@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useRoomContext } from '/context/RoomContext';
-import { connectSocket, joinRoom, sendMessage, onMessage, offMessage } from "../utils/socketCon";
+import { connectSocket, joinRoom, sendMessage, onMessage, offMessage, onJoinRoom, offJoinRoom, sendMute, onMute, offMute } from "../utils/socketCon";
 import { sendInviteCode } from '../utils/sendInvite';
-import { createRoom, fetchMessagesForRoom, incrementRoomMembers, sendMessage as sendingMessage } from '../utils/postgresCon';
+import { createRoom, fetchMessagesForRoom, incrementRoomMembers, postUserInTheRoom, sendMessage as sendingMessage } from '../utils/postgresCon';
 import { useLoader } from '../context/loadingContext';
-import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
+import { getLoginUrl, logoutUser, getAuthStatus, username, displayName } from '../utils/googleAuth';
 import MessageSkeleton from './MessageSkeleton';
 import { useWebRTCAudio } from '@/hooks/webRTCAudio';
 
@@ -25,6 +25,8 @@ function Chat() {
     const [userLoggedIn, setUserLoggedIn] = useState(false);
     const [usersData, setUsersData] = useState(null);
     const [isLoadingMessages, setIsLoadingMessages] = useState(false);
+    // Users data
+    const [users, setUsers] = useState([])
     const {
         isMuted,
         isConnected,
@@ -97,16 +99,39 @@ function Chat() {
 
         // Listen for incoming messages
         onMessage((data) => {
-            if (data.type !== "code") {
+            if (data.type === "join") {
+                setUsers((prevUsers) => {
+                    // Prevent duplicate entries by checking if email already exists
+                    const isDuplicate = prevUsers.some((user) => user.email === data.email);
+                    if (!isDuplicate) {
+                        // Update muteStatus immutably
+                        setMuteStatus((prevMuteStatus) => ({
+                            ...prevMuteStatus,
+                            [data.email]: true,
+                        }));
+                        return [...prevUsers, { email: data.email, name: data.name }];
+                    }
+                    return prevUsers; // No change if duplicate
+                });
+                console.log("Updated Users: ", users); // Log updated users
+                setChat((prevChat) => [...prevChat, data]);
+            }
+            if (data.type === "leave") {
                 setChat((prevChat) => [...prevChat, data]);
             }
         });
+
 
         return () => {
             // Clean up the message listener
             offMessage();
         };
     }, []);
+
+    useEffect(() => {
+        console.log("Users state updated: ", users);
+    }, [users]);
+
 
     const handleLogin = async () => {
         try {
@@ -150,7 +175,8 @@ function Chat() {
                     try {
                         joinRoom(roomId, {
                             type: "join",
-                            name: "You",
+                            email: username,
+                            name: displayName,
                             time: new Date().toLocaleTimeString([], {
                                 hour: '2-digit',
                                 minute: '2-digit'
@@ -174,6 +200,13 @@ function Chat() {
             setRoomCreated(true);
             setIsCreateRoomClicked(true);
             setIsJoinRoomClicked(false);
+            const user = username;
+            if (user) {
+                postUserInTheRoom(roomId, user)
+            }
+            else {
+                console.error("unable to get user")
+            }
 
         } catch (e) {
             console.error("Error in room creation:", e);
@@ -193,6 +226,13 @@ function Chat() {
             setIsJoinRoomClicked(true);
             setIsCreateRoomClicked(false);
             setStage(1);
+            const user = username;
+            if (user) {
+                postUserInTheRoom(room, user)
+            }
+            else {
+                console.error("unable to get user")
+            }
         }
 
     };
@@ -200,6 +240,7 @@ function Chat() {
     const handlingJoinRoom = async () => {
         const newMsg = {
             type: "join",
+            email: username,
             name: usersData.displayName,
             time: new Date().toLocaleTimeString([], {
                 hour: '2-digit',
@@ -315,13 +356,51 @@ function Chat() {
         }
     };
 
-    const toggleMute = (user) => {
-        setMuteStatus((prevStatus) => ({
-            ...prevStatus,
-            [user]: !prevStatus[user],
-        }));
-    };
+    useEffect(() => {
+        connectSocket();
+        onMute(async ({ data }) => {
+            const { email, mute } = data;
+            console.log("Received mute update: ", data);
 
+            // Update UI state for all users
+            setMuteStatus(prevStatus => ({
+                ...prevStatus,
+                [email]: mute // Use the received mute value directly
+            }));
+
+            // Only handle audio muting if the muted user is the current user
+            if (email === username) {
+                // Check if current mute state is different from desired state
+                if (isMuted !== mute) {
+                    console.log("Calling handleToggleMute for current user");
+                    await handleToggleMute();
+                }
+            }
+        });
+
+        return () => {
+            offMute();
+        };
+    }, [username, isMuted]);
+
+    const toggleMute = (user) => {
+        const newMuteState = !muteStatus[user.email];
+        const msg = {
+            email: user.email,
+            mute: newMuteState
+        };
+
+        console.log("sending mute message: ", msg);
+
+        // Update local state
+        setMuteStatus(prevStatus => ({
+            ...prevStatus,
+            [user.email]: newMuteState
+        }));
+
+        // Send to socket
+        sendMute(room, msg);
+    };
     const sendInvite = async () => {
         setLoading(true);
         if (!Email) {
@@ -356,8 +435,6 @@ function Chat() {
         }
     };
 
-    // Users data
-    const users = [];
 
     return (
         <div className='relative h-full'>
@@ -457,16 +534,16 @@ function Chat() {
                             )}
                             <div className='flex flex-col mt-5'>
                                 <ul className="list-none px-3">
-                                    {users.map((user, index) => (
-                                        <div key={index} className='flex w-full'>
+                                    {users.map((user) => (
+                                        <div key={user.email} className='flex w-full'>
                                             <li className="text-black dark:text-white text-md w-2/4 mt-2">
-                                                {user}
+                                                {user.name}
                                             </li>
                                             <div className='flex justify-end gap-1 w-2/4 mt-1'>
                                                 <button className="text-white p-2 rounded-full dark:filter dark:brightness-0 dark:invert" onClick={() => toggleMute(user)}>
                                                     <img
-                                                        src={muteStatus[user] ? './volume.png' : './music.png'}
-                                                        alt={muteStatus[user] ? 'Unmute' : 'Mute'}
+                                                        src={!muteStatus[user.email] ? './volume.png' : './music.png'}
+                                                        alt={!muteStatus[user.email] ? 'Unmute' : 'Mute'}
                                                         width={17}
                                                     />
                                                 </button>

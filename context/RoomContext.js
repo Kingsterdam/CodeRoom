@@ -3,8 +3,9 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { connectSocket, getAllRooms, onMessage, joinRoom } from "@/utils/socketCon";
-import { fetchRooms, incrementRoomMembers, fetchFromRedis } from "@/utils/postgresCon";
+import { fetchRooms, incrementRoomMembers, fetchFromRedis, postUserInTheRoom } from "@/utils/postgresCon";
 import { useLoader } from "./loadingContext";
+import { displayName, username } from "@/utils/googleAuth";
 
 const RoomContext = createContext();
 export const RoomProvider = ({ children }) => {
@@ -29,7 +30,7 @@ export const RoomProvider = ({ children }) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const tokenFromUrl = params.get('token');
-    
+
     async function fetchAllRooms() {
       try {
         showLoader();
@@ -45,7 +46,8 @@ export const RoomProvider = ({ children }) => {
 
           const newMsg = {
             type: "join",
-            name: "You",
+            email: username,
+            name: displayName,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
           }
           joinRoom(foundRoom.room_id, newMsg);
@@ -54,6 +56,9 @@ export const RoomProvider = ({ children }) => {
           setStage(2);
           try {
             const response = incrementRoomMembers(foundRoom.room_id);
+            const user = username;
+            console.log("ppppp", user)
+            postUserInTheRoom(foundRoom.room_id, user)
             console.log(response)
           }
           catch (e) {
@@ -76,15 +81,16 @@ export const RoomProvider = ({ children }) => {
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
     const roomFromUrl = params.get('roomId');
-  
+
     async function roomOnRedis() {
       try {
         const roomData = await fetchFromRedis(roomFromUrl); // Fetch room data based on roomId
         console.log("Room data", roomData);
-        
+
         const newMsg = {
           type: "join",
-          name: "You",
+          email: username,
+          name: displayName,
           time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
 
@@ -106,7 +112,7 @@ export const RoomProvider = ({ children }) => {
       roomOnRedis();
     }
   }, []);
-  
+
   return (
     <RoomContext.Provider value={{ isRoomActive, setRoomCreated, stage, setStage, room, setRoom, language, setLanguage }}>
       {children}
