@@ -6,6 +6,8 @@ import "../app/globals.css";
 import AuthButtons from "./authButtons";
 import ThemeToggle from "./themeToggle";
 import { useLoader } from '../context/loadingContext'; // Import the useLoader hook
+import { useWebRTCAudio } from '@/hooks/webRTCAudio';
+import AudioIndicator from "./audioIndicator";
 
 function Navbar() {
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
@@ -14,6 +16,14 @@ function Navbar() {
     const handlePopup = () => {
         setShowPopup(true); // Show the popup
     };
+    const {
+        isMuted,
+        isConnected,
+        audioLevel,
+        connectedPeers,
+        handleToggleMute,
+        userInteracted
+    } = useWebRTCAudio(room, isRoomActive);
 
     const handleCloseRoom = async () => {
         const newMsg = {
@@ -26,6 +36,7 @@ function Navbar() {
         setShowPopup(false); // Hide the popup
         leaveRoom(room, newMsg)
         setStage(0);
+        setRoom(false);
         const currentUrl = window.location.href;
         const baseUrl = currentUrl.split('?')[0];
         const newUrl = baseUrl;
@@ -73,18 +84,22 @@ function Navbar() {
                         </span>
                     </div>
 
-                    </div>
+                </div>
             </div>
             <div>
                 {isRoomActive && (
-                    <button
-                        onClick={handlePopup} // Trigger the popup on click
-                    >
-                        <span className="green-dot dark:text-green-400">●</span>
-                        <span className="hidden md:inline px-1.5 text-green-700 font-semibold dark:text-green-400">
-                            Room Active
-                        </span>
-                    </button>
+                    <div className="flex">
+                        <button
+                            onClick={handlePopup} // Trigger the popup on click
+                        >
+                            <span className="green-dot dark:text-green-400">●</span>
+                            <span className="hidden md:inline px-1.5 text-green-700 font-semibold dark:text-green-400">
+                                Room Active
+                            </span>
+                        </button>
+                        <AudioIndicator />
+                    </div>
+
                 )}
             </div>
             <div className="flex items-center p-2 gap-3">

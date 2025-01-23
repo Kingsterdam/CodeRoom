@@ -12,16 +12,27 @@ export let displayName;
 export const getAuthStatus = async () => {
     try {
         const response = await axios.get(`${API_URL}/auth/status`, {
-            withCredentials: true
+            withCredentials: true,
+            timeout: 5000 // 5 second timeout
         });
+
+        if (!response.data?.user) {
+            throw new Error('Invalid user data received');
+        }
         username = response.data.user.emails[0].value;
         displayName = response.data.user.displayName;
         return response.data.user;
     } catch (error) {
-        if (error.response?.status !== 401) {
-            console.error('Error fetching authentication status:', error);
+        if (error.response?.status === 401) {
+            return null;
         }
-        return null;
+
+        if (error.code === 'ECONNABORTED') {
+            throw new Error('Authentication request timed out');
+        }
+
+        console.error('Error fetching authentication status:', error);
+        throw error;
     }
 };
 

@@ -3,6 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
 import Link from 'next/link';
+import { useLoader } from '../context/loadingContext';
+import { useRoomContext } from '@/context/RoomContext';
 import { fetchProfile } from '@/utils/getProfile';
 
 const AuthButtons = () => {
@@ -13,6 +15,8 @@ const AuthButtons = () => {
     const [showProfilePopup, setProfilePopup] = useState(false);
     const [profilePicture, setProfilePicture] = useState('');
     const [showLoginPopup, setShowLoginPopup] = useState(false);
+    const { showLoader, hideLoader } = useLoader();
+    const { room } = useRoomContext();
 
     useEffect(() => {
         async function fetchAuthStatus() {
@@ -59,21 +63,21 @@ const AuthButtons = () => {
     // Login function (unchanged)
     const handleLogin = async () => {
         try {
-            setLoading(true);
+            showLoader(true);
             setTimeout(() => {
                 window.location.href = getLoginUrl();
             }, 500);
         } catch (error) {
             console.error('Login failed:', error);
             setError('Failed to login');
-            setLoading(false);
+            hideLoader(true);
         }
     };
 
     // Logout function (updated to clear localStorage)
     const handleLogout = async () => {
         try {
-            setLoading(true);
+            showLoader(true);
             await logoutUser();
             setUser(null);
             setShowProfilePopup(false);
@@ -82,9 +86,8 @@ const AuthButtons = () => {
             clearLocalStorage();
         } catch (error) {
             console.error('Logout failed:', error);
-            setError('Failed to logout');
         } finally {
-            setLoading(false);
+            hideLoader(true);
         }
     };
 
@@ -171,7 +174,7 @@ const AuthButtons = () => {
 
 
             {/* Profile popup for logged-in users */}
-            {showProfilePopup && user && (
+            {showProfilePopup && user && !room && (
                 <div className="absolute top-9 right-3 w-40 font-semibold bg-white p-2 border rounded-md">
                     <div className="flex flex-col items-center w-full">
                         <div className="text-md">{user.displayName}</div>

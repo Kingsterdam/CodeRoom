@@ -2,31 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { fabric } from 'fabric';
 import { useRoomContext } from '@/context/RoomContext';
 import { connectSocket, offCursor, offDrawing, onCursor, onDrawing, sendCursor, sendDrawing } from '@/utils/socketCon';
-import msgpack from 'msgpack-lite';
-import { displayName } from '@/utils/googleAuth';
-const convertToBinary = (data) => {
-  if (!data) return null;
-  try {
-    return msgpack.encode(data);
-  } catch (error) {
-    console.error('Error encoding binary data:', error);
-    return null;
-  }
-};
-
-const convertFromBinary = (binaryData) => {
-  if (!binaryData) return null;
-  try {
-    // Handle ArrayBuffer conversion
-    if (binaryData instanceof ArrayBuffer) {
-      binaryData = new Uint8Array(binaryData);
-    }
-    return msgpack.decode(Buffer.from(binaryData));
-  } catch (error) {
-    console.error('Error decoding binary data:', error);
-    return null;
-  }
-};
+import { throttle } from 'lodash';
 
 // Custom SVG icons
 const PencilIcon = () => (
@@ -55,6 +31,7 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   const [showLaser, setShowLaser] = useState(false);
   const [laserPosition, setLaserPosition] = useState({ x: 0, y: 0 });
   const [showTooltip, setShowTooltip] = useState('');
+
   const { room } = useRoomContext();
   const colors = [
     { hex: '#FF0000', name: 'Red' },
@@ -66,6 +43,43 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     { hex: '#000000', name: 'Black' },
     { hex: '#FFFFFF', name: 'White' },
   ];
+
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      fabricRef.current.renderOnAddRemove = false; // Disable automatic rendering
+      fabricRef.current.skipTargetFind = true; // Disable object targeting
+      fabricRef.current.selection = false; // Disable selection
+    }
+  }, []);
+
+  useEffect(() => {
+    if (fabricRef.current) {
+      const canvas = fabricRef.current;
+
+      // Optimize canvas settings
+      canvas.renderOnAddRemove = false;
+      canvas.skipTargetFind = true;
+      canvas.selection = false;
+
+      // Improve line quality
+      canvas.freeDrawingBrush.strokeLineCap = 'round';
+      canvas.freeDrawingBrush.strokeLineJoin = 'round';
+      canvas.freeDrawingBrush.strokeMiterLimit = 10;
+
+      // Enable better smoothing
+      if (canvas.contextTop) {
+        canvas.contextTop.imageSmoothingEnabled = true;
+        canvas.contextTop.imageSmoothingQuality = 'high';
+      }
+    }
+  }, []);
+
+  const throttledSendDrawing = useRef(
+    throttle((room, data) => {
+      sendDrawing(room, data);
+    }, 16) // Reduced to 16ms (approximately 60fps) for smoother drawing
+  ).current;
 
   useEffect(() => {
     if (!containerRef.current || fabricRef.current) return;
@@ -146,44 +160,72 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
   useEffect(() => {
     connectSocket();
 
-    onDrawing((data) => {
-      console.log("Received Drawing Data:", data);
-      const fromBinary = convertFromBinary(data.data)
-      console.log("converted from binary: ", fromBinary)
-      if (fabricRef.current && fromBinary.points) {
-        const canvas = fabricRef.current;
+    const pathMap = new Map(); // Store ongoing paths
 
-        const pathString = fromBinary.points
-          .map(({ x, y }, index) => (index === 0 ? `M ${x} ${y}` : `L ${x} ${y}`))
-          .join(' ');
+    const handleDrawing = (data) => {
+      if (!fabricRef.current) return;
+      const canvas = fabricRef.current;
 
-        const path = new fabric.Path(pathString, {
-          stroke: fromBinary.stroke || 'black',
-          strokeWidth: fromBinary.strokeWidth || 1,
-          fill: null,
-          selectable: false,
-          evented: false,
-        });
+      requestAnimationFrame(() => {
+        if (data.data.points && data.data.type === 'drawing') {
+          const points = data.data.points;
 
-        canvas.add(path);
-        canvas.renderAll();
-        console.log('Rendered Path:', path);
-      } else if (fabricRef.current && fromBinary.objects) {
-        fabricRef.current.loadFromJSON(fromBinary, () => {
-          fabricRef.current.renderAll(); // Render the updated canvas
-        });
-      }
-      else if (fabricRef.current && !fromBinary.objects && !fromBinary.points) {
-        fabricRef.current.clear();
-        console.log("Cleared drawing")
-      }
-      else {
-        console.error("Invalid drawing data received:", data);
-      }
-    });
+          if (points.length < 2) return;
+
+          // Create smooth path between points
+          let pathString = `M ${points[0].x} ${points[0].y}`;
+
+          for (let i = 1; i < points.length; i++) {
+            // Use quadratic curves for smoother lines
+            if (i < points.length - 1) {
+              const xc = (points[i].x + points[i + 1].x) / 2;
+              const yc = (points[i].y + points[i + 1].y) / 2;
+              pathString += ` Q ${points[i].x} ${points[i].y}, ${xc} ${yc}`;
+            } else {
+              pathString += ` L ${points[i].x} ${points[i].y}`;
+            }
+          }
+
+          // Remove existing path if it's an ongoing drawing
+          if (pathMap.has(data.sender)) {
+            canvas.remove(pathMap.get(data.sender));
+          }
+
+          const path = new fabric.Path(pathString, {
+            stroke: data.data.stroke || 'black',
+            strokeWidth: data.data.strokeWidth || 1,
+            fill: null,
+            selectable: false,
+            evented: false,
+            strokeLineCap: 'round',
+            strokeLineJoin: 'round'
+          });
+
+          canvas.add(path);
+
+          if (!data.data.isComplete) {
+            pathMap.set(data.sender, path);
+          } else {
+            pathMap.delete(data.sender);
+          }
+
+          canvas.renderAll();
+        } else if (data.data.objects) {
+          canvas.loadFromJSON(data.data, () => {
+            canvas.renderAll();
+          });
+        } else if (!data.data.objects && !data.data.points) {
+          canvas.clear();
+          pathMap.clear();
+        }
+      });
+    };
+
+    onDrawing(handleDrawing);
 
     return () => {
       offDrawing();
+      pathMap.clear();
     };
   }, []);
 
@@ -283,54 +325,62 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
 
   useEffect(() => {
     if (fabricRef.current && room && currentTool === "pencil") {
-      console.log("current tool is ", currentTool)
       const canvas = fabricRef.current;
-
-      // Enable drawing mode
       canvas.isDrawingMode = true;
+      let isDrawing = false;
+      let currentPath = [];
 
-      let isDrawing = false; // Track if the user is currently drawing
-
-      // Event: Start drawing
-      const handleMouseDown = () => {
+      const handleMouseDown = (event) => {
         isDrawing = true;
-        console.log('Started drawing...');
+        currentPath = [];
+        const pointer = canvas.getPointer(event.e);
+        currentPath.push({ x: pointer.x, y: pointer.y });
       };
 
-      // Event: Log drawing data on each mouse move
-      const handleMouseMove = () => {
-        if (isDrawing) {
-          const brush = fabricRef.current.freeDrawingBrush;
-          if (brush && brush._points && brush._points.length > 0) {
-            const pathData = {
-              points: brush._points.map(({ x, y }) => ({ x, y })), // Extract brush points
-              strokeWidth: brush.width,
-              stroke: brush.color,
-            };
-            console.log('Drawing Points During Drag:', pathData);
-            const binary = convertToBinary(pathData)
-            console.log("Binary: ", binary)
-            sendDrawing(room, binary); // Send the in-progress points data
-          }
+      const handleMouseMove = (event) => {
+        if (!isDrawing) return;
+
+        const brush = fabricRef.current.freeDrawingBrush;
+        if (brush && brush._points) {
+          const pointer = canvas.getPointer(event.e);
+          currentPath.push({ x: pointer.x, y: pointer.y });
+
+          // Send the complete path so far
+          const pathData = {
+            points: currentPath,
+            strokeWidth: brush.width,
+            stroke: brush.color,
+            type: 'drawing',
+            isComplete: false
+          };
+
+          throttledSendDrawing(room, pathData);
         }
       };
 
-
-      // Event: Stop drawing
       const handleMouseUp = () => {
-        if (isDrawing) {
-          isDrawing = false;
-          const finalDrawingData = canvas.toJSON();
-          console.log('Finished drawing. Final data:', finalDrawingData);
-        }
+        if (!isDrawing) return;
+
+        isDrawing = false;
+        const brush = fabricRef.current.freeDrawingBrush;
+
+        // Send final complete path
+        const pathData = {
+          points: currentPath,
+          strokeWidth: brush.width,
+          stroke: brush.color,
+          type: 'drawing',
+          isComplete: true
+        };
+
+        sendDrawing(room, pathData); // Send immediately without throttling
+        currentPath = [];
       };
 
-      // Attach event listeners
       canvas.on('mouse:down', handleMouseDown);
       canvas.on('mouse:move', handleMouseMove);
       canvas.on('mouse:up', handleMouseUp);
 
-      // Cleanup event listeners
       return () => {
         canvas.off('mouse:down', handleMouseDown);
         canvas.off('mouse:move', handleMouseMove);
@@ -343,22 +393,27 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
     if (fabricRef.current && room) {
       const canvas = fabricRef.current;
 
+      const throttledSendCursor = throttle((cursorData) => {
+        sendCursor(room, cursorData);
+      }, 50); // 50ms throttle time
+
       const handleMouseMove = (event) => {
         const pointer = canvas.getPointer(event.e); // Get cursor position
         const name = displayName
         const cursorData = {
           x: pointer.x,
           y: pointer.y,
-          name: name,
+          name: "Prasoon",
           color: "#FF0000",
         };
-        sendCursor(room, cursorData); // Emit cursor data to the server
+        throttledSendCursor(cursorData);
       };
 
       canvas.on('mouse:move', handleMouseMove);
 
       return () => {
-        canvas.off('mouse:move', handleMouseMove); // Cleanup listener
+        canvas.off('mouse:move', handleMouseMove);
+        throttledSendCursor.cancel();
       };
     }
   }, [isEnabled, room]);
@@ -430,68 +485,79 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
           }}
         />
       )}
-      <div className="absolute left-1/2 -translate-x-1/2 bottom-1 z-[150] max-w-full px-2">
+      <div className="absolute left-1/2 -translate-x-1/2 bottom-2 z-[150] w-[95%] md:w-auto">
         {isEnabled && (
-          <div className="flex flex-wrap items-center justify-center gap-4 bg-gray-800/90 backdrop-blur-sm p-2 rounded-lg shadow-lg">
-            {/* Tools */}
-            <div className="flex flex-wrap gap-2 border-r border-gray-600 pr-4">
-              <button
-                className={`p-2 rounded-lg transition-all ${currentTool === 'pencil'
-                  ? 'bg-gray-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  } md:p-1 lg:p-1.5`}
-                onClick={() => changeTool('pencil')}
-                title="Draw"
-              >
-                <PencilIcon className="w-4 h-4 sm:w-3 sm:h-3 lg:w-5 lg:h-5" />
-              </button>
-              <button
-                className={`p-2 rounded-lg transition-all ${currentTool === 'laser'
-                  ? 'bg-gray-600 text-white'
-                  : 'text-gray-300 hover:bg-gray-700 hover:text-white'
-                  } md:p-1 lg:p-1.5`}
-                onClick={() => changeTool('laser')}
-                title="Laser Pointer"
-              >
-                <LaserIcon className="w-4 h-4 sm:w-3 sm:h-3 lg:w-5 lg:h-5" />
-              </button>
-            </div>
-
-            {/* Brush Size */}
-            <div className="flex flex-wrap items-center gap-2 border-r border-gray-600 pr-4">
-              <input
-                type="range"
-                min="1"
-                max="20"
-                value={brushSize}
-                onChange={(e) => changeBrushSize(Number(e.target.value))}
-                className="w-24 accent-white sm:w-20 md:w-16 lg:w-24"
-                title="Brush Size"
-              />
-              <span className="text-white text-sm md:text-xs lg:text-sm min-w-[2rem]">{brushSize}px</span>
-            </div>
-
-            {/* Colors */}
-            <div className="flex flex-wrap gap-1">
-              {colors.map(({ hex, name }) => (
+          <div className="flex flex-col sm:flex-row items-center justify-center gap-2 sm:gap-3 bg-gray-800/90 backdrop-blur-sm p-1.5 sm:px-3 sm:py-2 rounded-lg shadow-lg border border-gray-700">
+            {/* First Row for Mobile / Left Section for Desktop */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+              {/* Tools Section */}
+              <div className="flex gap-1 sm:gap-2 border-r border-gray-600 pr-2 sm:pr-3">
                 <button
-                  key={hex}
-                  className={`w-8 h-8 sm:w-6 sm:h-6 md:w-5 md:h-5 lg:w-6 lg:h-6 rounded-lg transition-all hover:scale-110 ${currentColor === hex ? 'ring-2 ring-white ring-offset-1 ring-offset-gray-800' : ''
-                    }`}
-                  style={{ backgroundColor: hex }}
-                  onClick={() => changeColor(hex)}
-                  title={name}
+                  className={`transition-colors ${currentTool === 'pencil'
+                    ? 'bg-gray-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } rounded p-1 sm:p-1.5`}
+                  onClick={() => changeTool('pencil')}
+                  title="Draw"
+                >
+                  <PencilIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                </button>
+                <button
+                  className={`transition-colors ${currentTool === 'laser'
+                    ? 'bg-gray-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    } rounded p-1 sm:p-1.5`}
+                  onClick={() => changeTool('laser')}
+                  title="Laser Pointer"
+                >
+                  <LaserIcon className="w-3 h-3 sm:w-4 sm:h-4 lg:w-5 lg:h-5" />
+                </button>
+              </div>
+
+              {/* Brush Size Section */}
+              <div className="flex items-center gap-1 sm:gap-2 border-r border-gray-600 pr-2 sm:pr-3">
+                <input
+                  type="range"
+                  min="1"
+                  max="20"
+                  value={brushSize}
+                  onChange={(e) => changeBrushSize(Number(e.target.value))}
+                  className="w-16 sm:w-20 lg:w-24 accent-white"
+                  title="Brush Size"
                 />
-              ))}
+                <span className="text-white text-xs sm:text-sm min-w-[1.75rem] sm:min-w-[2rem]">
+                  {brushSize}px
+                </span>
+              </div>
             </div>
 
-            {/* Clear Button */}
-            <button
-              className="ml-4 px-4 py-2 sm:px-3 sm:py-1 md:px-2 md:py-1 lg:px-3 lg:py-1 bg-red-500 text-white rounded-lg hover:bg-red-600 transition-colors"
-              onClick={clear}
-            >
-              Clear
-            </button>
+            {/* Second Row for Mobile / Right Section for Desktop */}
+            <div className="flex items-center gap-2 w-full sm:w-auto justify-center">
+              {/* Colors Section */}
+              <div className="flex gap-0.5 sm:gap-1">
+                {colors.map(({ hex, name }) => (
+                  <button
+                    key={hex}
+                    className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded transition-colors ${currentColor === hex
+                      ? 'ring-1 sm:ring-2 ring-white ring-offset-1 ring-offset-gray-800'
+                      : ''
+                      }`}
+                    style={{ backgroundColor: hex }}
+                    onClick={() => changeColor(hex)}
+                    title={name}
+                  />
+                ))}
+              </div>
+
+              {/* Clear Button */}
+              <button
+                className="ml-1 sm:ml-2 px-2 sm:px-3 py-1 sm:py-1.5 bg-red-500 text-white text-xs sm:text-sm
+                       rounded hover:bg-red-600 transition-colors"
+                onClick={clear}
+              >
+                Clear
+              </button>
+            </div>
           </div>
         )}
       </div>

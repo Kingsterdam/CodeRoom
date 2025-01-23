@@ -368,6 +368,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
         audioLevel,
         connectedPeers,
         handleToggleMute,
+        setAudioLevel,
         userInteracted
     };
 };
