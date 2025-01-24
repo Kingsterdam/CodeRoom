@@ -23,10 +23,10 @@ const Resizer = ({ onResize }) => {
 
     const handleMouseMove = (e) => {
       if (!isResizing) return;
-      
+
       // Prevent text selection
       e.preventDefault();
-      
+
       const containerWidth = window.innerWidth;
       const newWidth = (e.clientX / containerWidth) * 100;
 
@@ -70,18 +70,18 @@ const Resizer = ({ onResize }) => {
     <div className="relative w-0 cursor-col-resize hover:bg-transparent select-none">
       {/* Invisible hit area */}
       <div className="absolute inset-0 w-full h-full" />
-      
+
       {/* Drag handle */}
-      <div 
+      <div
         className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 py-6 rounded-lg hover:bg-blue-500/20 active:bg-blue-500/40 transition-colors select-none"
         onMouseDown={handleMouseDown}
-        style={{ 
+        style={{
           touchAction: 'none',  // Prevents touch handling
           WebkitTapHighlightColor: 'transparent' // Removes tap highlight on mobile
         }}
       >
-        <GripVertical 
-          size={20} 
+        <GripVertical
+          size={20}
           className="text-gray-400 dark:text-gray-500"
         />
       </div>
@@ -107,6 +107,7 @@ function App() {
   const [activeView, setActiveView] = useState('editor'); // 'editor' or 'chat'
   const [isLargeScreen, setIsLargeScreen] = useState(() => window.innerWidth >= 1024);
   const [editorWidth, setEditorWidth] = useState(75); // Initial width percentage
+  const [isSummaryEnabled, setIsSummaryEnabled] = useState(false);
 
   // Handle screen resize
   useEffect(() => {
@@ -423,6 +424,18 @@ function App() {
                     <span className="text-xs sm:text-sm font-medium opacity-90 mb-2 sm:mb-0">{editor.name}</span>
                     <div className="flex items-center space-x-2 sm:space-x-4 w-full sm:w-auto justify-end">
                       <button
+                        className={`cursor-pointer flex items-center gap-1 sm:gap-2 px-2 py-1 rounded-lg text-white text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 ${isSummaryEnabled
+                            ? 'bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700'
+                            : 'bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700'
+                          } shadow-lg`}
+                        onClick={() => setIsSummaryEnabled(!isSummaryEnabled)}
+                        title="Toggle AI Summary"
+                      >
+                        <span>AI Explain</span>
+                        <div className={`w-3 h-3 rounded-full ${isSummaryEnabled ? 'bg-green-200' : 'bg-gray-300'
+                          }`} />
+                      </button>
+                      <button
                         className="cursor-pointer flex items-center gap-1 sm:gap-2 px-2 py-1 rounded-lg text-white text-xs sm:text-sm font-semibold transition-all duration-300 ease-in-out transform hover:scale-105 bg-gradient-to-r from-indigo-500 via-purple-600 to-pink-500 shadow-lg hover:from-indigo-600 hover:via-purple-700 hover:to-pink-600"
                         onClick={handleDraw}
                         title="Draw"
@@ -438,7 +451,7 @@ function App() {
                         <img
                           src='./camera.png'
                           alt='Copy'
-                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
+                          className='w-4 h-4 sm:w-6 sm:h-6 filter brightness-0 invert opacity-100 hover:opacity-100'
                         />
                       </button>
 
@@ -451,7 +464,7 @@ function App() {
                           <img
                             src='./copy.png'
                             alt='Copy'
-                            className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
+                            className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-100 hover:opacity-100'
                           />
                           {copyStatus && (
                             <span className="absolute -top-8 left-1/2 transform -translate-x-1/2 text-xs bg-[#1B2134] text-white px-2 py-1 rounded whitespace-nowrap">
@@ -469,7 +482,7 @@ function App() {
                         <img
                           src='./direct-download.png'
                           alt='Download'
-                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-60 hover:opacity-100'
+                          className='w-4 h-4 sm:w-5 sm:h-5 filter brightness-0 invert opacity-100 hover:opacity-100'
                         />
                       </button>
                     </div>
@@ -488,6 +501,7 @@ function App() {
                         onContentChange={(content) => handleContentChange(editor.id, content)}
                         onLanguageChange={(value) => handleLanguageChange(value.editorId, value.language)}
                         ref={editorRef}
+                        isSummaryEnabled={isSummaryEnabled}
                       />
                     </ErrorBoundary>
                   </div>
@@ -513,8 +527,8 @@ function App() {
             <button
               onClick={() => setActiveView('editor')}
               className={`flex flex-col items-center justify-center w-1/2 py-2 transition-colors ${activeView === 'editor'
-                  ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
+                ? 'text-blue-500 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
                 }`}
             >
               <Code size={24} />
@@ -523,8 +537,8 @@ function App() {
             <button
               onClick={() => setActiveView('chat')}
               className={`flex flex-col items-center justify-center w-1/2 py-2 transition-colors ${activeView === 'chat'
-                  ? 'text-blue-500 dark:text-blue-400'
-                  : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
+                ? 'text-blue-500 dark:text-blue-400'
+                : 'text-gray-500 dark:text-gray-400 hover:text-blue-500 dark:hover:text-blue-400'
                 }`}
             >
               <Smartphone size={24} />

@@ -9,6 +9,7 @@
     "lint": "next lint"
   },
   "dependencies": {
+    "@google/generative-ai": "^0.21.0",
     "@monaco-editor/react": "^4.6.0",
     "axios": "^1.7.9",
     "fabric": "^5.5.1",

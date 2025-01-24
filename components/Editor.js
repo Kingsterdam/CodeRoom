@@ -7,6 +7,7 @@ import { ErrorBoundary } from "next/dist/client/components/error-boundary";
 import { useRoomContext } from "@/context/RoomContext";
 import { connectSocket, offLanguageUpdate, offMessage, onLanguageUpdate, onMessage, sendMessage } from "@/utils/socketCon";
 import { saveCode, fetchCode } from '../utils/codeSaving'
+import CodeSummaryPopup from "./summarizeAI";
 
 const SAMPLE_CODE = {
   javascript: `// JavaScript Hello World
@@ -35,6 +36,7 @@ const Editor = forwardRef(({
   language = "javascript",
   theme = "vs-dark",
   initialContent = "",
+  isSummaryEnabled = false,
   onContentChange = () => { },
   onLanguageChange = () => { }// Add this prop with default empty function
 }, ref) => {
@@ -47,6 +49,9 @@ const Editor = forwardRef(({
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
   // React to language changes and update the code sample
+  const [selectedCode, setSelectedCode] = useState('');
+  const [showCodeSummaryPopup, setShowCodeSummaryPopup] = useState(false);
+  const [popupPosition, setPopupPosition] = useState({ x: 0, y: 0 });
 
   const [inputValue, setInputValue] = useState(''); // State to manage input
   const { room, setRoom } = useRoomContext();
@@ -69,6 +74,71 @@ const Editor = forwardRef(({
       lastUpdate: performance.now()
     };
   };
+
+  useEffect(() => {
+    if (!isSummaryEnabled) {
+      setShowCodeSummaryPopup(false);
+      setSelectedCode('');
+    }
+  }, [isSummaryEnabled]);
+
+  useEffect(() => {
+    const editor = editorRef.current?.editor;
+    if (editor) {
+      const selectionListener = editor.onDidChangeCursorSelection((e) => {
+
+        const model = editor.getModel();
+        const selection = e.selection;
+
+        if (!selection.isEmpty()) {
+          const selectedText = model.getValueInRange(selection);
+          if (selectedText.trim()) {
+            setSelectedCode(selectedText);
+
+            // Get editor container dimensions
+            const editorRect = editor.getDomNode().getBoundingClientRect();
+
+            // Get end position of selection
+            const endPosition = editor.getScrolledVisiblePosition(selection.getEndPosition());
+
+            // Calculate initial position (to the right of selection)
+            let popupX = editorRect.left + endPosition.left + 250; // 20px offset from selection
+            let popupY = editorRect.top + endPosition.top - 150; // Align vertically with selection
+
+            // Get viewport dimensions
+            const viewportWidth = window.innerWidth;
+            const viewportHeight = window.innerHeight;
+            const POPUP_WIDTH = 380;
+            const POPUP_HEIGHT = 300;
+
+            // If popup would go beyond right edge, place it to the left of selection
+            if (popupX + POPUP_WIDTH > viewportWidth) {
+              popupX = editorRect.left + endPosition.left - POPUP_WIDTH - 20;
+            }
+
+            // Adjust vertical position if too close to bottom
+            if (popupY + POPUP_HEIGHT > viewportHeight - 250) {
+              popupY = viewportHeight - POPUP_HEIGHT - 300;
+            }
+
+            // Adjust vertical position if too close to top
+            if (popupY < 20) {
+              popupY = 100;
+            }
+
+            setPopupPosition({ x: popupX, y: popupY });
+            setShowCodeSummaryPopup(true);
+          }
+        } else {
+          setShowCodeSummaryPopup(false);
+        }
+      });
+
+      return () => {
+        selectionListener.dispose();
+      };
+    }
+  }, [language, code]);// Add 'code' to the dependency array
 
   useEffect(() => {
     const handleMouseMove = (e) => {
@@ -306,7 +376,6 @@ const Editor = forwardRef(({
     sendMessage(room, newMessage)
   }
 
-
   return (
     <div className="relative w-full " ref={editorRef} style={{ height: 'calc(100% - 55px)' }}> {/* Adjust height */}
       <MonacoEditor
@@ -324,7 +393,29 @@ const Editor = forwardRef(({
           fontSize: 14, // Optional: set font size
           readOnly: isDrawModeEnabled
         }}
+        onMount={(editor, monaco) => {
+          editorRef.current = { editor, monaco };
+        }}
       />
+
+      {isSummaryEnabled && showCodeSummaryPopup && selectedCode && (
+        <div
+          className="absolute z-50"
+          style={{
+            position: 'absolute',
+            top: `${popupPosition.y}px`,
+            left: `${popupPosition.x}px`,
+            zIndex: 1000
+          }}
+        >
+          <CodeSummaryPopup
+            selectedCode={selectedCode}
+            language={language}
+            onClose={() => setShowCodeSummaryPopup(false)}
+          />
+        </div>
+      )}
+
       <ErrorBoundary>
         <DrawingLayer
           containerRef={editorRef}
