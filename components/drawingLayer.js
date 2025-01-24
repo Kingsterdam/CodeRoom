@@ -398,7 +398,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
       }, 50); // 50ms throttle time
 
       const handleMouseMove = (event) => {
-        const pointer = canvas.getPointer(event.e);
+        const pointer = canvas.getPointer(event.e); // Get cursor position
+        const name = displayName
         const cursorData = {
           x: pointer.x,
           y: pointer.y,
@@ -493,8 +494,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
               <div className="flex gap-1 sm:gap-2 border-r border-gray-600 pr-2 sm:pr-3">
                 <button
                   className={`transition-colors ${currentTool === 'pencil'
-                      ? 'bg-gray-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    ? 'bg-gray-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     } rounded p-1 sm:p-1.5`}
                   onClick={() => changeTool('pencil')}
                   title="Draw"
@@ -503,8 +504,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
                 </button>
                 <button
                   className={`transition-colors ${currentTool === 'laser'
-                      ? 'bg-gray-600 text-white'
-                      : 'text-gray-300 hover:bg-gray-700 hover:text-white'
+                    ? 'bg-gray-600 text-white'
+                    : 'text-gray-300 hover:bg-gray-700 hover:text-white'
                     } rounded p-1 sm:p-1.5`}
                   onClick={() => changeTool('laser')}
                   title="Laser Pointer"
@@ -538,8 +539,8 @@ const DrawingLayer = ({ containerRef, isEnabled = false }) => {
                   <button
                     key={hex}
                     className={`w-5 h-5 sm:w-6 sm:h-6 lg:w-7 lg:h-7 rounded transition-colors ${currentColor === hex
-                        ? 'ring-1 sm:ring-2 ring-white ring-offset-1 ring-offset-gray-800'
-                        : ''
+                      ? 'ring-1 sm:ring-2 ring-white ring-offset-1 ring-offset-gray-800'
+                      : ''
                       }`}
                     style={{ backgroundColor: hex }}
                     onClick={() => changeColor(hex)}

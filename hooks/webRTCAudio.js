@@ -57,7 +57,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
         checkAudioLevel();
     };
 
-const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParameters }) => {
+    const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParameters }) => {
         try {
             const consumer = await consumerTransportRef.current.consume({
                 id: consumerId,
@@ -144,7 +144,7 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
     };
 
     // Setup socket listeners
-     const setupSocketListeners = () => {
+    const setupSocketListeners = () => {
         socketRef.current.on('routerRtpCapabilities', async (routerRtpCapabilities) => {
             try {
                 await deviceRef.current.load({ routerRtpCapabilities });
@@ -189,6 +189,7 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
         producerTransportRef.current = deviceRef.current.createSendTransport(params);
 
         producerTransportRef.current.on('connect', async ({ dtlsParameters }, callback, errback) => {
+            console.log("got a connection req ....")
             try {
                 await socketRef.current.emit('connectTransport', {
                     transportId: params.id,
@@ -246,8 +247,10 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
 
     // Toggle mute function
     const handleToggleMute = async () => {
+        console.log("Mute toggle calles--->")
         try {
             if (isMuted) {
+                console.log("is muted --------->>>>")
                 await initializeAudioContext();
 
                 streamRef.current = await navigator.mediaDevices.getUserMedia({
@@ -283,6 +286,7 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
                     }
                 });
             } else {
+                console.log("is not muted --------->>>>")
                 if (producerRef.current) {
                     producerRef.current.close();
                 }
@@ -294,7 +298,11 @@ const handleConsumerCreated = async ({ consumerId, producerId, kind, rtpParamete
                 }
                 setAudioLevel(0);
             }
-            setIsMuted(!isMuted);
+            setIsMuted((muted) => {
+                console.log("Toggling isMuted: ", muted); // Log the current and toggled state
+                return !muted;
+            });
+
         } catch (error) {
             console.error('Error toggling mute:', error);
             setIsMuted(true);

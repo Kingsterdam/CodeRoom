@@ -3,11 +3,12 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import { connectSocket, getAllRooms, onMessage, joinRoom } from "@/utils/socketCon";
-import { fetchRooms, incrementRoomMembers, fetchFromRedis } from "@/utils/postgresCon";
+import { fetchRooms, incrementRoomMembers, fetchFromRedis, postUserInTheRoom } from "@/utils/postgresCon";
 import { useLoader } from "./loadingContext";
 import { getAuthStatus } from "@/utils/googleAuth";
 import { all } from "axios";
 import { getLoginUrl } from "@/utils/googleAuth";
+import { displayName, username } from "@/utils/googleAuth";
 
 const RoomContext = createContext();
 export const RoomProvider = ({ children }) => {
@@ -67,7 +68,8 @@ export const RoomProvider = ({ children }) => {
 
             const newMsg = {
               type: "join",
-              name: "You",
+              email: username,
+              name: displayName,
               time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
             }
             joinRoom(foundRoom.room_id, newMsg);
@@ -76,13 +78,16 @@ export const RoomProvider = ({ children }) => {
             setStage(2);
             try {
               const response = await incrementRoomMembers(foundRoom.room_id);
+              const user = username;
+              console.log("ppppp", user)
+              postUserInTheRoom(foundRoom.room_id, user)
               console.log(response);
             }
             catch (e) {
               console.error("Unable to increase Members under this room", e);
             }
           }
-          else{
+          else {
             setInvalidroom(true);
             return;
           }
@@ -127,7 +132,8 @@ export const RoomProvider = ({ children }) => {
 
         const newMsg = {
           type: "join",
-          name: "You",
+          email: username,
+          name: displayName,
           time: new Date().toLocaleTimeString([], {
             hour: '2-digit',
             minute: '2-digit'
@@ -200,7 +206,7 @@ export const RoomProvider = ({ children }) => {
   }, []);
 
   return (
-    <RoomContext.Provider value={{ isRoomActive, setRoomCreated, stage, setStage, room, setRoom, language, setLanguage, invalidRoom, setInvalidroom}}>
+    <RoomContext.Provider value={{ isRoomActive, setRoomCreated, stage, setStage, room, setRoom, language, setLanguage, invalidRoom, setInvalidroom }}>
       {children}
     </RoomContext.Provider>
   );

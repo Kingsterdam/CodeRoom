@@ -6,7 +6,9 @@ export const getLoginUrl = () => {
     return `${API_URL}/auth/google`;
 };
 
-// Modified getAuthStatus to handle errors more gracefully
+export let username;
+export let displayName;
+
 export const getAuthStatus = async () => {
     try {
         const response = await axios.get(`${API_URL}/auth/status`, {
@@ -17,7 +19,8 @@ export const getAuthStatus = async () => {
         if (!response.data?.user) {
             throw new Error('Invalid user data received');
         }
-
+        username = response.data.user.emails[0].value;
+        displayName = response.data.user.displayName;
         return response.data.user;
     } catch (error) {
         if (error.response?.status === 401) {

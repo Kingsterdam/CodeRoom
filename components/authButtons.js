@@ -5,6 +5,7 @@ import { getLoginUrl, logoutUser, getAuthStatus } from '../utils/googleAuth';
 import Link from 'next/link';
 import { useLoader } from '../context/loadingContext';
 import { useRoomContext } from '@/context/RoomContext';
+import { fetchProfile } from '@/utils/getProfile';
 
 const AuthButtons = () => {
     const [user, setUser] = useState(null);
@@ -15,7 +16,7 @@ const AuthButtons = () => {
     const [profilePicture, setProfilePicture] = useState('');
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const { showLoader, hideLoader } = useLoader();
-    const {room} = useRoomContext();
+    const { room } = useRoomContext();
 
     useEffect(() => {
         async function fetchAuthStatus() {
@@ -24,30 +25,35 @@ const AuthButtons = () => {
                 if (userData) {
                     setUser(userData);
 
-                    // Extract and save data to localStorage
-                    const { displayName, emails, photos } = userData;
+                    // First try to get picture from localStorage
+                    let picture = localStorage.getItem('userPicture');
+
+                    if (!picture) {
+                        // If not in localStorage, fetch from Redis
+                        const userDetails = await fetchProfile();
+                        if (userDetails?.profile_picture_url) {
+                            const picture = encodeURI(userDetails.profile_picture_url);
+                            console.log('Encoded picture URL:', picture);
+                            localStorage.setItem('userPicture', picture);
+                            setProfilePicture(picture);
+                        }
+                    }
+
+                    // Set a default avatar if no picture is available
+                    setProfilePicture(picture || '/default-avatar.png');
+
+                    // Save other user data
+                    const { displayName, emails } = userData;
                     const email = emails?.[0]?.value || '';
-                    const picture = photos?.[0]?.value || './man.png';
-                    
                     localStorage.setItem('userName', displayName);
                     localStorage.setItem('userEmail', email);
-                    if (picture) {
-                        localStorage.setItem('userPicture', picture);
-                    }
-                    setProfilePicture(picture)
-                    console.log('User data saved to localStorage:', {
-                        name: displayName,
-                        email,
-                        picture,
-                    });
                 } else {
-                    // Clear localStorage if no user data is found (e.g., user is logged out)
                     clearLocalStorage();
                 }
             } catch (error) {
                 console.error('Failed to fetch auth status:', error);
                 setError('Failed to fetch authentication status');
-                clearLocalStorage(); // Clear on error to avoid stale data
+                clearLocalStorage();
             }
         }
 
@@ -141,10 +147,17 @@ const AuthButtons = () => {
             {/* User avatar when logged in */}
             {user ? (
                 <div className="flex items-center space-x-1">
+                    {console.log("ppppppp", profilePicture)}
                     <img
-                        src={profilePicture || './man.png'}
-                        alt="User Avatar"
-                        className="w-8 h-8 rounded-full cursor-pointer"
+                        src={profilePicture}
+                        alt={`${user.displayName}'s avatar`}
+                        className="w-8 h-8 rounded-full cursor-pointer object-cover"
+                        onError={(e) => {
+                            console.log("error loading image: ", e)
+                            e.target.onerror = null; // Prevent infinite loop
+                            e.target.src = './man.png'; // Fallback image
+                            setProfilePicture('./man.png'); // Update state
+                        }}
                         onClick={toggleProfilePopup}
                     />
                 </div>
