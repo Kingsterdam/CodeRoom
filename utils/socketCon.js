@@ -225,9 +225,29 @@ export const onMute = (callback) => {
     socket.on("muteUpdate", callback);
 };
 
-export const offMute = (callback) => {
+export const offMute = () => {
     const socket = getSocket();
     socket.off("muteUpdate");
+}
+
+export const sendRemoveUser = (room, data) => {
+    const socket = getSocket();
+    if (room && data) {
+        socket.emit("removeUser", { room, data });
+        console.log(`Mute update sent to room ${room}.`);
+    } else {
+        console.error("Room and cursor are required to send updates.");
+    }
+};
+
+export const onRemoveUser = (callback) => {
+    const socket = getSocket();
+    socket.on("removeUser", callback);
+};
+
+export const offRemoveUser = () => {
+    const socket = getSocket();
+    socket.off("removeUser");
 }
 
 /**

@@ -22,6 +22,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
     const audioContextRef = useRef();
     const analyserRef = useRef();
     const animationFrameRef = useRef();
+    const roomRef = useRef(roomId);
 
     // Initialize audio context
     const initializeAudioContext = async () => {
@@ -146,6 +147,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
     // Setup socket listeners
     const setupSocketListeners = () => {
         socketRef.current.on('routerRtpCapabilities', async (routerRtpCapabilities) => {
+            console.log("asked for rtp capabilities")
             try {
                 await deviceRef.current.load({ routerRtpCapabilities });
                 socketRef.current.emit('createWebRtcTransport', { sender: true });
@@ -170,9 +172,14 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
             console.log('Transport connected successfully');
         });
 
-        socketRef.current.on('newProducer', async ({ producerId }) => {
-            if (consumerTransportRef.current) {
-                await consumeAudio(producerId);
+        socketRef.current.on('newProducer', async ({ producerId, roomId }) => {
+            console.log("received new Producer...", { producerId, roomId });
+
+            // Only consume if the producer is from the current room
+            if (roomId === roomRef.current) {
+                if (consumerTransportRef.current) {
+                    await consumeAudio(producerId);
+                }
             }
         });
 
@@ -206,7 +213,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
                 socketRef.current.emit('produce', {
                     transportId: producerTransportRef.current.id,
                     kind,
-                    rtpParameters
+                    rtpParameters,
+                    roomId
                 }, ({ producerId }) => {
                     callback({ id: producerId });
                 });
@@ -283,7 +291,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
                     codecOptions: {
                         opusStereo: true,
                         opusDtx: true,
-                    }
+                    },
+                    roomId: roomRef.current
                 });
             } else {
                 console.log("is not muted --------->>>>")
@@ -353,6 +362,10 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
         document.addEventListener('click', handleFirstInteraction);
         return () => document.removeEventListener('click', handleFirstInteraction);
     }, [pendingAudioElements]);
+
+    useEffect(() => {
+        roomRef.current = roomId;
+    }, [roomId]);
 
     // Effect for room connection
     useEffect(() => {

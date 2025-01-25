@@ -8,6 +8,7 @@ import ThemeToggle from "./themeToggle";
 import { useLoader } from '../context/loadingContext'; // Import the useLoader hook
 import { useWebRTCAudio } from '@/hooks/webRTCAudio';
 import AudioIndicator from "./audioIndicator";
+import { displayName, username } from "@/utils/googleAuth";
 
 function Navbar() {
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
@@ -28,7 +29,8 @@ function Navbar() {
     const handleCloseRoom = async () => {
         const newMsg = {
             type: "leave",
-            name: "You",
+            name: displayName,
+            email: username,
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         }
 
