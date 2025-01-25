@@ -1,6 +1,6 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, use } from 'react';
 import { useRoomContext } from '/context/RoomContext';
-import { connectSocket, joinRoom, sendMessage, onMessage, offMessage, onJoinRoom, offJoinRoom, sendMute, onMute, offMute } from "../utils/socketCon";
+import { connectSocket, joinRoom, sendMessage, onMessage, offMessage, onJoinRoom, offJoinRoom, sendMute, onMute, offMute, sendRemoveUser, onRemoveUser, offRemoveUser, leaveRoom } from "../utils/socketCon";
 import { sendInviteCode } from '../utils/sendInvite';
 import { createRoom, fetchMessagesForRoom, incrementRoomMembers, postUserInTheRoom, sendMessage as sendingMessage } from '../utils/postgresCon';
 import { useLoader } from '../context/loadingContext';
@@ -41,7 +41,7 @@ const ChatMessage = ({ message, currentUserEmail }) => {
 };
 
 // Component for user list item
-const UserListItem = ({ user, muteStatus, toggleMute }) => (
+const UserListItem = ({ user, muteStatus, toggleMute, removeUser }) => (
     <div className="flex w-full">
         <li className="text-black dark:text-white text-md w-2/4 mt-2">
             {user.name}
@@ -58,7 +58,7 @@ const UserListItem = ({ user, muteStatus, toggleMute }) => (
                 />
             </button>
             <button className="text-white py-2 px-2 rounded-full dark:filter dark:brightness-0 dark:invert">
-                <img src="./trash.png" width={17} alt="Delete" />
+                <img src="./trash.png" width={17} alt="Delete" onClick={() => removeUser(user)} />
             </button>
         </div>
     </div>
@@ -174,6 +174,13 @@ function Chat() {
             }
             else if (data.type !== 'code') {
                 setChat((prevChat) => [...prevChat, data]);
+                if (data.type === 'leave') {
+                    console.log("a user left: ", data)
+                    const filtered = users.filter((user) => {
+                        return user.email !== data.email
+                    })
+                    setUsers(filtered)
+                }
             }
         });
 
@@ -181,7 +188,7 @@ function Chat() {
             // Clean up the message listener
             offMessage();
         };
-    }, []);
+    }, [chat, users]);
 
     const handleLogin = async () => {
         try {
@@ -429,6 +436,78 @@ function Chat() {
         sendMute(room, msg);
     };
 
+    function removeUser(user) {
+        const msg = { email: user.email };
+        console.log("Removing user: ", msg);
+
+        const filtered = users.filter((u) => u.email !== user.email);
+        try {
+            sendRemoveUser(room, msg);
+        } catch (e) {
+            console.error("Error removing user: ", e);
+        }
+
+        setUsers(filtered); // Ensure this happens last if state order matters
+    }
+
+    const handleCloseRoom = async () => {
+        setRoomCreated(false); // Close the room
+        setShowPopup(false); // Hide the popup
+        setStage(0);
+        setRoom(false);
+        const currentUrl = window.location.href;
+        const baseUrl = currentUrl.split('?')[0];
+        const newUrl = baseUrl;
+
+        window.history.pushState({ path: newUrl }, '', newUrl);
+        try {
+            const response = await fetch(`http://localhost:9090/api/v1/room/${room}/decrement`, {
+                method: "PATCH",
+                headers: { 'Content-Type': 'application/json' },
+            })
+            if (response.ok) {
+                const room_data = await response.json()
+                console.log("Members", room_data)
+                if (room_data.updatedRoom.Members === 0) {
+                    console.log("Delete called")
+                    await fetch(`http://localhost:9090/api/v1/room/${room}`, {
+                        method: "DELETE",
+                        headers: { 'Content-Type': 'application/json' },
+                    })
+                }
+            }
+        }
+        catch (e) {
+            console.log("Unable to decrease Members under this room", e)
+        }
+    };
+
+    useEffect(() => {
+        const handleRemoveUser = async ({ data }) => {
+            const { email } = data;
+            console.log("Received remove user: ", email);
+
+            if (email !== username) {
+                console.log("Filtering users for email: ", email);
+                setUsers((prevUsers) =>
+                    prevUsers.filter((u) => u.email !== email)
+                );
+            }
+            else {
+                await handleCloseRoom();
+            }
+        };
+
+        connectSocket();
+        onRemoveUser(handleRemoveUser);
+
+        return () => {
+            offRemoveUser();
+        };
+    }, [username, users]); // Include `username` as a dependency
+
+
+
     // Real-time email validation as user types
     const handleEmailChange = (e) => {
         const newEmail = e.target.value;
@@ -605,6 +684,7 @@ function Chat() {
                                             user={user}
                                             muteStatus={muteStatus}
                                             toggleMute={toggleMute}
+                                            removeUser={removeUser}
                                         />
                                     ))}
 

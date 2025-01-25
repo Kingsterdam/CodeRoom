@@ -60,6 +60,7 @@ const AuthButtons = () => {
 
         fetchAuthStatus();
     }, [profilePicture]);
+    }, [profilePicture]);
 
     // Login function (unchanged)
     const handleLogin = async () => {
@@ -148,7 +149,6 @@ const AuthButtons = () => {
             {/* User avatar when logged in */}
             {user ? (
                 <div className="flex items-center space-x-1">
-                    {console.log("ppppppp", profilePicture)}
                     <img
                         src={profilePicture}
                         alt={`${user.displayName}'s avatar`}

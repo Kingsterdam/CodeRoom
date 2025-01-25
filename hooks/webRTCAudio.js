@@ -22,6 +22,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
     const audioContextRef = useRef();
     const analyserRef = useRef();
     const animationFrameRef = useRef();
+    const roomRef = useRef(roomId);
 
     // Initialize audio context
     const initializeAudioContext = async () => {
@@ -146,6 +147,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
     // Setup socket listeners
     const setupSocketListeners = () => {
         socketRef.current.on('routerRtpCapabilities', async (routerRtpCapabilities) => {
+            console.log("asked for rtp capabilities")
             try {
                 await deviceRef.current.load({ routerRtpCapabilities });
                 socketRef.current.emit('createWebRtcTransport', { sender: true });
@@ -207,7 +209,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
                 socketRef.current.emit('produce', {
                     transportId: producerTransportRef.current.id,
                     kind,
-                    rtpParameters
+                    rtpParameters,
+                    roomId
                 }, ({ producerId }) => {
                     callback({ id: producerId });
                 });
@@ -284,7 +287,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
                     codecOptions: {
                         opusStereo: true,
                         opusDtx: true,
-                    }
+                    },
+                    roomId: roomRef.current
                 });
             } else {
                 console.log("is not muted --------->>>>")
@@ -354,6 +358,10 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
         document.addEventListener('click', handleFirstInteraction);
         return () => document.removeEventListener('click', handleFirstInteraction);
     }, [pendingAudioElements]);
+
+    useEffect(() => {
+        roomRef.current = roomId;
+    }, [roomId]);
 
     // Effect for room connection
     useEffect(() => {
