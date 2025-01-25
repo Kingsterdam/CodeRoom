@@ -171,6 +171,7 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
         });
 
         socketRef.current.on('newProducer', async ({ producerId }) => {
+            console.log("New producer created:", producerId);
             if (consumerTransportRef.current) {
                 await consumeAudio(producerId);
             }

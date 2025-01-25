@@ -22,6 +22,7 @@ const AuthButtons = () => {
         async function fetchAuthStatus() {
             try {
                 const userData = await getAuthStatus();
+                console.log('userdata', userData)
                 if (userData) {
                     setUser(userData);
 
@@ -58,7 +59,7 @@ const AuthButtons = () => {
         }
 
         fetchAuthStatus();
-    }, []);
+    }, [profilePicture]);
 
     // Login function (unchanged)
     const handleLogin = async () => {

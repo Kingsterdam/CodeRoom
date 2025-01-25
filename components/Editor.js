@@ -46,6 +46,8 @@ const Editor = forwardRef(({
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState({ status: "", result: "" });
   const editorRef = useRef(null);
+  const monacoRef = useRef(null); // For Monaco editor instance
+
   const [isDrawModeEnabled, setIsDrawModeEnabled] = useState(false);
   const [activeTab, setActiveTab] = useState('input');
   // React to language changes and update the code sample
@@ -83,7 +85,7 @@ const Editor = forwardRef(({
   }, [isSummaryEnabled]);
 
   useEffect(() => {
-    const editor = editorRef.current?.editor;
+    const editor = monacoRef.current?.editor;
     if (editor) {
       const selectionListener = editor.onDidChangeCursorSelection((e) => {
 
@@ -394,7 +396,7 @@ const Editor = forwardRef(({
           readOnly: isDrawModeEnabled
         }}
         onMount={(editor, monaco) => {
-          editorRef.current = { editor, monaco };
+          monacoRef.current = { editor, monaco };
         }}
       />
 
