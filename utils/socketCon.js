@@ -283,3 +283,33 @@ export const offCodeUpdate = () => {
     const socket = getSocket();
     socket.off("codeUpdate");
 };
+
+
+export const onOnlineUsersCount = (callback) => {
+    const socket = getSocket();
+    if (socket) {
+        socket.on("onlineUsersCount", (count) => {
+            callback(count);
+        });
+    }
+};
+
+/**
+ * Request current online users count
+ */
+export const getOnlineUsersCount = () => {
+    const socket = getSocket();
+    if (socket) {
+        socket.emit('getOnlineUsersCount');
+    }
+};
+
+/**
+ * Stop listening to online users count updates
+ */
+export const offOnlineUsersCount = () => {
+    const socket = getSocket();
+    if (socket) {
+        socket.off("onlineUsersCount");
+    }
+};

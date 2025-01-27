@@ -9,11 +9,13 @@ import { useLoader } from '../context/loadingContext'; // Import the useLoader h
 import { useWebRTCAudio } from '@/hooks/webRTCAudio';
 import AudioIndicator from "./audioIndicator";
 import { displayName, username } from "@/utils/googleAuth";
+import OnlineUsers from "./onlineUsers";
 
 function Navbar() {
     const { isRoomActive, setRoomCreated, stage, setStage, room, setRoom } = useRoomContext(); // Destructure setRoomCreated
     const [showPopup, setShowPopup] = useState(false); // State to manage the popup visibility
     const { showLoader, hideLoader } = useLoader(); // Destructure the showLoader function
+
     const handlePopup = () => {
         setShowPopup(true); // Show the popup
     };
@@ -106,6 +108,7 @@ function Navbar() {
             </div>
             <div className="flex items-center p-2 gap-3">
                 <ThemeToggle />
+                <OnlineUsers/>
                 <AuthButtons />
             </div>
 

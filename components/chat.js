@@ -637,14 +637,14 @@ function Chat() {
                                 <input
                                     placeholder="Enter Users Email"
                                     value={Email}
-                                    className="w-3/4 p-2 border dark:text-black"
+                                    className="w-3/4 p-2 border rounded-md dark:text-black"
                                     onChange={handleEmailChange}
                                     type="email"
                                     aria-label="Email address"
                                 />
                                 <button
-                                    className={`w-1/4 p-2 rounded-sm border ${loading || (Email && !validateEmail(Email).isValid)
-                                        ? 'bg-gray-400 text-black cursor-not-allowed'
+                                    className={`w-1/4 p-2 rounded-md border ${loading || (Email && !validateEmail(Email).isValid)
+                                        ? 'cursor-not-allowed'
                                         : 'bg-gray-900 dark:bg-green-300 dark:text-black text-white'
                                         }`}
                                     onClick={sendInvite}
@@ -656,10 +656,10 @@ function Chat() {
                                             <div className="font-semibold">Inviting</div>
                                         </div>
                                     ) : (
-                                        <div className="flex gap-1 justify-center">
+                                        <div className="flex gap-1 justify-center md:text-md text-sm">
                                             <img
                                                 src="./add-group.png"
-                                                className="w-5 h-5 filter brightness-0 invert dark:invert-0"
+                                                className="w-5 h-5 filter brightness-0 invert"
                                                 alt="Add Group"
                                             />
                                             <div className="font-semibold">Invite</div>

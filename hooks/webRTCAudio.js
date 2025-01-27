@@ -109,7 +109,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
             socketRef.current.emit('consume', {
                 producerId,
                 rtpCapabilities: deviceRef.current.rtpCapabilities,
-                transportId: consumerTransportRef.current.id
+                transportId: consumerTransportRef.current.id,
+                roomId: roomRef.current  // Add roomId here
             });
         } catch (error) {
             console.error('Error consuming audio:', error);

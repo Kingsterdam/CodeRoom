@@ -13,56 +13,66 @@ const AuthButtons = () => {
     const [showPopup, setShowPopup] = useState(false);
     const [error, setError] = useState(null);
     const [showProfilePopup, setProfilePopup] = useState(false);
-    const [profilePicture, setProfilePicture] = useState('');
+    const [profilePicture, setProfilePicture] = useState(null);
     const [showLoginPopup, setShowLoginPopup] = useState(false);
     const { showLoader, hideLoader } = useLoader();
     const { room } = useRoomContext();
 
     useEffect(() => {
-        async function fetchAuthStatus() {
-            try {
-                const userData = await getAuthStatus();
-                console.log('userdata', userData)
-                if (userData) {
-                    setUser(userData);
+        processUserData();
+    }, []); 
 
-                    // First try to get picture from localStorage
-                    let picture = localStorage.getItem('userPicture');
+    const clearLocalStorage = () => {
+        localStorage.removeItem('userName');
+        localStorage.removeItem('userEmail');
+        localStorage.removeItem('userPicture');
+    };
 
-                    if (!picture) {
-                        // If not in localStorage, fetch from Redis
-                        const userDetails = await fetchProfile();
-                        if (userDetails?.profile_picture_url) {
-                            const picture = encodeURI(userDetails.profile_picture_url);
-                            console.log('Encoded picture URL:', picture);
-                            localStorage.setItem('userPicture', picture);
-                            setProfilePicture(picture);
-                        }
-                    }
+    const fetchUserPicture = async () => {
+        // First try to get picture from localStorage
+        let picture = localStorage.getItem('userPicture');
 
-                    // Set a default avatar if no picture is available
-                    setProfilePicture(picture || '/default-avatar.png');
-
-                    // Save other user data
-                    const { displayName, emails } = userData;
-                    const email = emails?.[0]?.value || '';
-                    localStorage.setItem('userName', displayName);
-                    localStorage.setItem('userEmail', email);
-                } else {
-                    clearLocalStorage();
-                }
-            } catch (error) {
-                console.error('Failed to fetch auth status:', error);
-                setError('Failed to fetch authentication status');
-                clearLocalStorage();
+        if (!picture) {
+            // If not in localStorage, fetch from Redis
+            const userDetails = await fetchProfile();
+            if (userDetails?.profile_picture_url) {
+                picture = encodeURI(userDetails.profile_picture_url);
+                console.log('Encoded picture URL:', picture);
+                localStorage.setItem('userPicture', picture);
             }
         }
 
-        fetchAuthStatus();
-    }, [profilePicture]);
-    }, [profilePicture]);
+        // Set a default avatar if no picture is available
+        return picture || '/man.png';
+    };
 
-    // Login function (unchanged)
+    const processUserData = async () => {
+        try {
+            const userData = await getAuthStatus();
+            console.log('userdata', userData);
+
+            if (userData) {
+                setUser(userData);
+
+                // Fetch and set profile picture
+                const picture = await fetchUserPicture();
+                setProfilePicture(picture);
+
+                // Save other user data
+                const { displayName, emails } = userData;
+                const email = emails?.[0]?.value || '';
+                localStorage.setItem('userName', displayName);
+                localStorage.setItem('userEmail', email);
+            } else {
+                clearLocalStorage();
+            }
+        } catch (error) {
+            console.error('Failed to fetch auth status:', error);
+            setError('Failed to fetch authentication status');
+            clearLocalStorage();
+        }
+    };
+
     const handleLogin = async () => {
         try {
             showLoader(true);
@@ -93,13 +103,6 @@ const AuthButtons = () => {
         }
     };
 
-    // Utility function to clear user data from localStorage
-    function clearLocalStorage() {
-        localStorage.removeItem('userName');
-        localStorage.removeItem('userEmail');
-        localStorage.removeItem('userPicture');
-        console.log('User data cleared from localStorage');
-    }
 
     const toggleProfilePopup = () => {
         setProfilePopup(prevState => !prevState);
