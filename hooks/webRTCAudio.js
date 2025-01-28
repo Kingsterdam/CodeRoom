@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { io } from 'socket.io-client';
 import { Device } from 'mediasoup-client';
+import { username } from '@/utils/googleAuth';
 
 export const useWebRTCAudio = (roomId, isRoomActive) => {
     // State declarations remain the same
@@ -109,7 +110,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
             socketRef.current.emit('consume', {
                 producerId,
                 rtpCapabilities: deviceRef.current.rtpCapabilities,
-                transportId: consumerTransportRef.current.id
+                transportId: consumerTransportRef.current.id,
+                consumerEmail: username
             });
         } catch (error) {
             console.error('Error consuming audio:', error);
@@ -172,11 +174,12 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
             console.log('Transport connected successfully');
         });
 
-        socketRef.current.on('newProducer', async ({ producerId, roomId }) => {
-            console.log("received new Producer...", { producerId, roomId });
+        socketRef.current.on('newProducer', async ({ producerId, sendersRoomId, senderEmail }) => {
+            console.log("received new Producer...", { producerId, sendersRoomId, senderEmail });
 
             // Only consume if the producer is from the current room
-            if (roomId === roomRef.current) {
+            console.log("room refff", roomRef.current)
+            if (sendersRoomId === roomRef.current && username !== senderEmail) {
                 if (consumerTransportRef.current) {
                     await consumeAudio(producerId);
                 }
@@ -214,7 +217,8 @@ export const useWebRTCAudio = (roomId, isRoomActive) => {
                     transportId: producerTransportRef.current.id,
                     kind,
                     rtpParameters,
-                    roomId
+                    roomId,
+                    email: username
                 }, ({ producerId }) => {
                     callback({ id: producerId });
                 });
